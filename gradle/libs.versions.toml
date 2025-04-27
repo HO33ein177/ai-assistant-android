@@ -1,0 +1,74 @@
+[versions]
+# --- CORE UPDATES for Kotlin 2.0 ---
+kotlin = "2.0.0"
+agp = "8.4.1" # Using AGP 8.4.1 (stable, compatible with newer Gradle/Kotlin)
+hiltAndroid = "2.56.1"
+hiltAndroidCompiler = "2.56.1"
+composeBom = "2024.05.00" # BOM compatible with Kotlin 2.0
+hiltNavigationComposeVersion = "1.2.0" # Latest stable androidx hilt nav
+
+# --- Other Updated Dependencies (Recommended) ---
+coreKtx = "1.13.1"
+junitVersion = "1.2.1"
+espressoCore = "3.6.1"
+lifecycleRuntimeKtx = "2.8.2" # Aligned lifecycle versions
+activityCompose = "1.9.0"
+lifecycleViewmodelCompose = "2.8.2" # Aligned lifecycle versions
+
+# --- Existing Stable Versions (Likely OK) ---
+accompanistPermissions = "0.34.0" # Keep unless compatibility issues arise
+generativeai = "0.9.0"
+junit = "4.13.2"
+navigationCompose = "2.7.7" # Keep stable Navigation
+roomVersion = "2.6.1" # Room 2.6.1 should be compatible
+
+# --- Potentially Unused/Review ---
+composeQrCode = "1.0.0"
+composeQrCodeVersion = "1.0.1"
+devComposeQrCode = "1.3.1"
+lightsparkComposeQrCode = "1.0.1"
+#material3 = "1.3.1" # Removed - Let BOM handle this
+common = "0.10.0" # Check if 'common' is the correct artifact name/version for generativeai
+
+[libraries]
+accompanist-permissions = { module = "com.google.accompanist:accompanist-permissions", version.ref = "accompanistPermissions" }
+androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+androidx-hilt-navigation-compose = { module = "androidx.hilt:hilt-navigation-compose", version.ref = "hiltNavigationComposeVersion" } # Now 1.2.0
+androidx-lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-runtime-compose", version.ref = "lifecycleViewmodelCompose" } # Now 2.8.2
+androidx-lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycleViewmodelCompose" } # Now 2.8.2
+androidx-material-icons-core = { module = "androidx.compose.material:material-icons-core" } # Managed by BOM
+androidx-material-icons-extended = { module = "androidx.compose.material:material-icons-extended" } # Managed by BOM
+androidx-navigation-compose = { module = "androidx.navigation:navigation-compose", version.ref = "navigationCompose" } # Now 2.7.7
+androidx-room-compiler = { module = "androidx.room:room-compiler", version.ref = "roomVersion" } # Still 2.6.1
+androidx-room-ktx = { module = "androidx.room:room-ktx", version.ref = "roomVersion" } # Still 2.6.1
+androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "roomVersion" } # Still 2.6.1
+compose-qr-code = { module = "com.lightspark:compose-qr-code", version.ref = "lightsparkComposeQrCode" } # Review if needed
+generativeai = { module = "com.google.ai.client.generativeai:generativeai", version.ref = "generativeai" }
+hilt-android = { module = "com.google.dagger:hilt-android", version.ref = "hiltAndroid" } # Now 2.51.1
+hilt-android-compiler = { module = "com.google.dagger:hilt-android-compiler", version.ref = "hiltAndroidCompiler" } # Now 2.51.1
+lightspark-compose-qr-code = { group = "androidx.lightspark", name = "compose-qr-code", version = "1.3.1" } # Review if needed/correct
+
+
+junit = { group = "junit", name = "junit", version.ref = "junit" }
+androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" } # Now 1.2.1
+androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" } # Now 3.6.1
+androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycleRuntimeKtx" } # Now 2.8.2
+androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" } # Now 1.9.0
+androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" } # Now 2024.05.00
+androidx-ui = { group = "androidx.compose.ui", name = "ui" } # Managed by BOM
+androidx-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics" } # Managed by BOM
+androidx-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" } # Managed by BOM
+androidx-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" } # Managed by BOM
+androidx-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" } # Managed by BOM
+androidx-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" } # Managed by BOM
+androidx-material3 = { group = "androidx.compose.material3", name = "material3" } # Managed by BOM
+# material3 = { module = "androidx.compose.material3:material3", version.ref = "material3" } # Removed redundant alias
+common = { group = "com.google.ai.client.generativeai", name = "common", version.ref = "common" } # Review if needed/correct
+
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" } # Now 8.4.1
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" } # Now 2.0.0
+kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" } # Now 2.0.0
+# KSP plugin version needs to be set in app/build.gradle.kts to 2.0.0-1.0.21
+# Hilt plugin version needs to be set where applied (build.gradle.kts or app/build.gradle.kts) to 2.51.1
