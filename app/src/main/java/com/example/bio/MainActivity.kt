@@ -1,6 +1,7 @@
 package com.example.bio // Ensure correct package
 
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -95,15 +96,24 @@ fun AppNavigation() {
 
         // Signup Screen - Navigates to Conversation List on Success
         composable(route = AppDestinations.SIGNUP_ROUTE) {
-            SignupScreen( // Use the SignupScreen generated previously
+            SignupScreen(
                 navController = navController,
-                onSignupSuccess = { userId ->
-                    // On successful signup, navigate to Conversation List
-                    navController.navigate(AppDestinations.createConversationListRoute(userId)) {
-                        // Clear signup and login from backstack
-                        popUpTo(AppDestinations.LOGIN_ROUTE) { inclusive = true }
-                        // Set Conversation List as the new root if needed (might already be handled by popping login)
-                        // graph.setStartDestination(AppDestinations.CONVERSATION_LIST_ROUTE)
+                onSignupSuccess = { userId -> // userId is Long from ViewModel
+                    Log.d("Navigation", "Signup Success! Navigating with userId: $userId")
+                    try {
+                        // *** FIX: Convert Long userId to Int for the route ***
+                        val route = AppDestinations.createConversationListRoute(userId.toInt())
+                        Log.d("Navigation", "Navigating to route: $route")
+                        navController.navigate(route) {
+                            // Clear signup and login screens from the back stack
+                            popUpTo(AppDestinations.LOGIN_ROUTE) { inclusive = true }
+                            Log.d("Navigation", "Navigation executed.")
+                        }
+                    } catch (e: Exception) {
+                        Log.e("Navigation", "Error during signup navigation", e)
+                        // Optionally show a toast or navigate back to login on error
+                        // Toast.makeText(navController.context, "Navigation error", Toast.LENGTH_SHORT).show()
+                        // navController.popBackStack(AppDestinations.LOGIN_ROUTE, false)
                     }
                 }
             )

@@ -26,33 +26,37 @@ object DatabaseModule {
             AppDatabase::class.java,
             "soundwave_database" // Your database name
         )
-            .fallbackToDestructiveMigration() // Add options if needed
+            .fallbackToDestructiveMigration() // Consider proper migrations for production
             .build()
     }
 
+    // Provide ApiTokenDao (Was correct, renamed function for clarity)
     @Provides
     @Singleton
-    fun apiTokenDao(appDatabase: AppDatabase): ApiTokenDao { // CHANGE YourDao and yourDao()
-        return appDatabase.apiTokenDao() // CHANGE yourDao() to the method in AppDatabase
+    fun provideApiTokenDao(appDatabase: AppDatabase): ApiTokenDao {
+        return appDatabase.apiTokenDao()
     }
+
+    // Provide MessageDao (Was correct, renamed function for clarity)
     @Provides
     @Singleton
-    fun messageDao(appDatabase: AppDatabase): MessageDao { // CHANGE YourDao and yourDao()
-        return appDatabase.messageDao() // CHANGE yourDao() to the method in AppDatabase
+    fun provideMessageDao(appDatabase: AppDatabase): MessageDao {
+        return appDatabase.messageDao()
     }
+
+    // Provide UserDao (Corrected function name and return type)
     @Provides
     @Singleton
-    fun userDao(appDatabase: AppDatabase): UserDao { // CHANGE YourDao and yourDao()
-        return appDatabase.userDao() // CHANGE yourDao() to the method in AppDatabase
+    fun provideUserDao(appDatabase: AppDatabase): UserDao { // <-- Return UserDao type
+        return appDatabase.userDao() // <-- Call userDao() method
     }
 
+    // Provide UserPreferenceDao (Added missing provider)
     @Provides
     @Singleton
-    fun userPreferences(appDatabase: AppDatabase): UserPreferenceDao { // CHANGE YourDao and yourDao()
-        return appDatabase.userPreferencesDao() // CHANGE yourDao() to the method in AppDatabase
+    fun provideUserPreferenceDao(appDatabase: AppDatabase): UserPreferenceDao {
+        return appDatabase.userPreferencesDao() // <-- Call userPreferencesDao() method
     }
 
-
-
-    // Add provides methods for other DAOs...
+    // Removed the incorrect/placeholder 'provideYourDao' function
 }

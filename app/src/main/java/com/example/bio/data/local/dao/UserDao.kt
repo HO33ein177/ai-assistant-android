@@ -20,6 +20,7 @@ interface UserDao{
     @Query("SELECT * FROM users WHERE username = :username")
     suspend fun getUserByUsername(username: String): User?
 
-
+    @Query("SELECT * FROM users WHERE email = :email LIMIT 1") // Check if email exists
+    suspend fun getUserByEmail(email: String): User?
 
 }

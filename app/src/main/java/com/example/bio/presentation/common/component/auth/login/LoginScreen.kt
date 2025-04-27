@@ -1,6 +1,6 @@
 package com.example.bio.presentation.common.component.auth.login
 
-
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -22,9 +22,12 @@ import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
@@ -42,20 +45,49 @@ import com.example.bio.presentation.common.component.reusable.GradientBox
 import com.example.bio.presentation.common.component.reusable.MyBasicTextField
 import com.example.bio.presentation.common.component.reusable.RoundedButton
 
+
 @Composable
 fun LoginScreen(
     navController: NavHostController,
-    viewModel: LoginViewModel = hiltViewModel(),
+    viewModel: LoginViewModel = hiltViewModel(), // Get LoginViewModel via Hilt
 ) {
 
-    val email = viewModel.email.value
-    val password = viewModel.password.value
+    // Read state from ViewModel
+    val email by viewModel.email
+    val password by viewModel.password
+    val loginState by viewModel.loginState // Observe the login process state
 
-    Scaffold {
+    val context = LocalContext.current
+    val isLoading = loginState is LoginResult.Loading // Check if loading
+
+    // Handle Login State changes (Side Effects for navigation/toast)
+    LaunchedEffect(loginState) {
+        when (val state = loginState) {
+            is LoginResult.Success -> {
+                Toast.makeText(context, "Login Successful!", Toast.LENGTH_SHORT).show()
+                // Navigate to Conversation List on success
+                navController.navigate(AppDestinations.createConversationListRoute(state.userId)) {
+                    // Clear the login screen and anything before it (like Splash) from backstack
+                    popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                }
+                viewModel.resetLoginState() // Reset state after navigation handled
+            }
+            is LoginResult.Error -> {
+                // Show error message to the user via Toast
+                Toast.makeText(context, state.message, Toast.LENGTH_LONG).show()
+                // ViewModel resets state when user types again.
+            }
+            LoginResult.Loading -> { /* UI handled by isLoading */ }
+            LoginResult.Idle -> { /* Initial state */ }
+        }
+    }
+
+
+    Scaffold { paddingValues -> // Use paddingValues from Scaffold
 
         Column(
             modifier = Modifier
-                .padding(it)
+                .padding(paddingValues) // Apply padding
                 .fillMaxSize(),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
@@ -64,148 +96,144 @@ fun LoginScreen(
             Row(
                 modifier = Modifier
                     .padding(16.dp)
-                    .weight(1f),
+                    .weight(1f), // Keep layout structure
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-
+                // --- Logo and Title ---
                 Text(
-                    modifier = Modifier
-                        .padding(top = 16.dp),
+                    modifier = Modifier.padding(top = 16.dp),
                     text = "Soundwave",
                     style = LocalTextStyle.current.copy(
                         fontWeight = FontWeight.Bold,
                         fontSize = 40.sp
                     ),
-                    color = colorResource(R.color.purple_700)
+                    // Use a color defined in your resources or theme
+                    color = colorResource(R.color.purple_700) // Example, adjust as needed
                 )
 
                 Image(
-                    painter = painterResource(id = R.drawable.logo),
+                    painter = painterResource(id = R.drawable.logo), // Your logo
                     contentDescription = "logo",
-                    modifier = Modifier
-                        .size(160.dp)
+                    modifier = Modifier.size(160.dp)
                 )
-
             }
 
             GradientBox(
                 modifier = Modifier
                     .fillMaxSize()
-                    .weight(1.3f)
+                    .weight(1.3f) // Keep layout structure
                     .clip(RoundedCornerShape(topStart = 40.dp, topEnd = 40.dp))
             ) {
 
                 Column(
-
-                    modifier = Modifier
-                        .padding(20.dp)
-
+                    modifier = Modifier.padding(20.dp)
                 ) {
                     Text(
                         modifier = Modifier
                             .padding(horizontal = 16.dp, vertical = 16.dp),
-                        text = "ورود به حساب کاربری",
+                        text = "ورود به حساب کاربری", // "Login to Account"
                         style = TextStyle(
-                            fontFamily = FontFamily(Font(R.font.vazirmatn_bold)),
+                            fontFamily = FontFamily(Font(R.font.vazirmatn_bold)), // Your font
                             fontSize = 24.sp,
                             fontWeight = FontWeight.ExtraBold
                         ),
-                        color = colorResource(R.color.black)
+                        color = colorResource(R.color.black) // Or theme color
                     )
 
                     Spacer(Modifier.height(16.dp))
 
-
+                    // --- Email Field ---
                     MyBasicTextField(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp),
                         value = email,
-                        label = "آدرس ایمیل",
+                        label = "آدرس ایمیل", // "Email Address"
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Email
                         ),
-                        keyboardActions = KeyboardActions(),
+                        keyboardActions = KeyboardActions(), // Can add action e.g., focus next
                         trailingIcon = Icons.Outlined.Email,
-                        onValueChange = {
-                            viewModel.changeEmail(it)
-                        }
+                        onValueChange = viewModel::changeEmail, // Update ViewModel using function reference
+                        // Optionally indicate error state based on ViewModel
+                        isError = loginState is LoginResult.Error
                     )
 
                     Spacer(Modifier.height(24.dp))
 
+                    // --- Password Field ---
                     MyBasicTextField(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp),
                         value = password,
-                        label = "رمز عبور",
-                        maxLength = 32,
+                        label = "رمز عبور", // "Password"
                         keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Number
+                            keyboardType = KeyboardType.Password // Use Password type
                         ),
-                        keyboardActions = KeyboardActions(),
-                        isPassword = true,
+                        keyboardActions = KeyboardActions(), // Can add action e.g., trigger login
+                        isPassword = true, // Assuming MyBasicTextField handles visibility toggle
                         trailingIcon = Icons.Outlined.Lock,
-                        onValueChange = {
-                            viewModel.changePassword(it)
-                        }
+                        onValueChange = viewModel::changePassword, // Update ViewModel using function reference
+                        // Optionally indicate error state based on ViewModel
+                        isError = loginState is LoginResult.Error
                     )
 
                     Spacer(Modifier.height(24.dp))
 
+                    // --- Login Button ---
                     RoundedButton(
-                        text = "ورود",
+                        text = if (isLoading) "Logging in..." else "ورود", // "Login"
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp),
+                        enabled = !isLoading, // Disable button when loading
                         onClick = {
-//                            navController.navigate(AppDestinations.LOGIN_ROUTE)
+                            // Trigger login attempt in ViewModel
+                            viewModel.attemptLogin()
                         }
+                        // Make sure RoundedButton accepts containerColor or similar
+                        // containerColor = colorResource(R.color.main_blue) // Example color
                     )
 
+                    // --- Links ---
                     Row(
                         modifier = Modifier
-                            .padding(vertical = 8.dp, horizontal = 16.dp),
+                            .padding(vertical = 8.dp, horizontal = 16.dp)
+                            .fillMaxWidth(), // Ensure Row takes width for arrangement
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.SpaceBetween // Keep spacing
                     ) {
-
+                        // Forgot Password Link
                         Text(
                             modifier = Modifier
                                 .clickable {
+                                    // Navigate using routes from AppDestinations
                                     navController.navigate(AppDestinations.FORGET_PASSWORD_ROUTE)
                                 },
-                            text = "رمز عبور را فراموش کرده اید؟",
-                            color = colorResource(R.color.black),
+                            text = "رمز عبور را فراموش کرده اید؟", // "Forgot Password?"
+                            color = colorResource(R.color.black), // Use appropriate color
                             style = LocalTextStyle.current.copy(
-                                fontFamily = FontFamily(Font(R.font.vazirmatn_regular))
+                                fontFamily = FontFamily(Font(R.font.vazirmatn_regular)) // Your font
                             )
                         )
 
-                        Spacer(Modifier.weight(1f))
-
+                        // Signup Link
                         Text(
                             modifier = Modifier.clickable {
+                                // Navigate using routes from AppDestinations
                                 navController.navigate(AppDestinations.SIGNUP_ROUTE)
                             },
-                            text = "ایجاد حساب کاربری",
-                            color = colorResource(R.color.black),
+                            text = "ایجاد حساب کاربری", // "Create Account"
+                            color = colorResource(R.color.black), // Use appropriate color
                             style = LocalTextStyle.current.copy(
-                                fontFamily = FontFamily(Font(R.font.vazirmatn_regular))
+                                fontFamily = FontFamily(Font(R.font.vazirmatn_regular)) // Your font
                             )
                         )
-
                     }
-
                 }
-
-
             }
         }
-
-
     }
-
 }

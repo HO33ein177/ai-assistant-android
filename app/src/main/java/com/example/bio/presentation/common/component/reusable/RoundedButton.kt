@@ -27,6 +27,7 @@ fun RoundedButton(
     text: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
     elevation: Dp = 4.dp,
     backGroundColor: Color = colorResource(R.color.purple_700),
     contentColor: Color = colorResource(R.color.black),
@@ -35,6 +36,7 @@ fun RoundedButton(
         onClick = onClick,
         shape = RoundedCornerShape(12.dp),
         modifier = modifier then IconButtonSizeModifier,
+        enabled = enabled,
         colors = ButtonDefaults.buttonColors(
             containerColor = backGroundColor,
             contentColor = contentColor
