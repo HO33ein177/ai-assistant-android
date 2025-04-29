@@ -1,5 +1,5 @@
 
-val kspVersion = "1.9.10-1.0.13"
+//val kspVersion = "1.9.10-1.0.13"
 //val hiltVersion = "2.56.1"
 //val hiltNavigationComposeVersion = "1.1.0"
 val roomVersion = "2.6.1"

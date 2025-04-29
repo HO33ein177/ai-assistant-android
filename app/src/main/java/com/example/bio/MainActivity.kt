@@ -22,10 +22,13 @@ import com.example.bio.presentation.common.component.auth.login.LoginScreen
 import com.example.bio.presentation.common.component.auth.signup.SignupScreen
 import com.example.bio.presentation.common.component.chat.ChatScreen
 import com.example.bio.presentation.common.component.chat.ConversationListScreen
+import com.example.bio.presentation.common.component.landing.SimpleLandingScreen
 import com.example.bio.presentation.common.component.onboarding.OnboardingScreen
 import com.example.bio.presentation.common.component.splash.SplashScreen
 import com.example.bio.presentation.common.component.theme.BioTheme
 import dagger.hilt.android.AndroidEntryPoint
+import java.util.UUID
+private const val TAG = "AppNavigation" // <<< Add TAG for logging
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -101,8 +104,12 @@ fun AppNavigation() {
                 onSignupSuccess = { userId -> // userId is Long from ViewModel
                     Log.d("Navigation", "Signup Success! Navigating with userId: $userId")
                     try {
-                        // *** FIX: Convert Long userId to Int for the route ***
-                        val route = AppDestinations.createConversationListRoute(userId.toInt())
+                        // --- NAVIGATION CHANGE ---
+                        // Generate a new conversation ID
+                        val newConversationId = UUID.randomUUID().toString()
+                        // Navigate to Chat Screen instead of Conversation List
+                        val route = AppDestinations.createChatRoute(userId.toInt(), newConversationId)
+                        // --- END NAVIGATION CHANGE ---
                         Log.d("Navigation", "Navigating to route: $route")
                         navController.navigate(route) {
                             // Clear signup and login screens from the back stack
@@ -157,6 +164,9 @@ fun AppNavigation() {
             val userId = backStackEntry.arguments?.getInt(NavArguments.USER_ID)
             val conversationId = backStackEntry.arguments?.getString(NavArguments.CONVERSATION_ID)
 
+            Log.d(TAG, "Attempting to navigate to ChatScreen. Arguments received - userId: $userId, conversationId: $conversationId")
+
+
             if (userId != null && conversationId != null) {
                 ChatScreen(
                     userId = userId,
@@ -165,27 +175,40 @@ fun AppNavigation() {
                     // navController = navController
                 )
             } else {
+                Log.e(TAG, "Error navigating to ChatScreen: Missing required arguments. userId: $userId, conversationId: $conversationId")
+
                 Text("Error: Missing required arguments for chat.")
                 // Navigate back if arguments are missing
                 LaunchedEffect(Unit) { navController.popBackStack() }
             }
         }
 
-        // Settings Screen
+        // --- ADD DESTINATION FOR SIMPLE LANDING SCREEN ---
         composable(
-            route = AppDestinations.CHAT_ROUTE,
+            route = AppDestinations.SIMPLE_LANDING_ROUTE,
             arguments = listOf(
                 navArgument(NavArguments.USER_ID) { type = NavType.IntType }
             )
         ) { backStackEntry ->
             val userId = backStackEntry.arguments?.getInt(NavArguments.USER_ID)
+
+            Log.d(TAG, "Attempting to compose SimpleLandingScreen. Argument received - userId: $userId")
+
             if (userId != null) {
-//                SettingsScreen(navController = navController, userId = userId)
+                SimpleLandingScreen(userId = userId)
             } else {
-                Text("Error: Missing User ID for Settings.")
-                // Navigate back if arguments are missing
-                LaunchedEffect(Unit) { navController.popBackStack() }
+                Log.e(TAG, "Error navigating to SimpleLandingScreen: Missing userId argument.")
+                Text("Error: Missing User ID for Landing Screen.")
+                // Navigate back or to login if userId is missing
+                LaunchedEffect(Unit) {
+                    navController.popBackStack(AppDestinations.LOGIN_ROUTE, inclusive = false)
+                }
             }
         }
+
+
+
+
+
     }
 }

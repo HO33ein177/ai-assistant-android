@@ -26,6 +26,12 @@ object AppDestinations {
     fun createChatRoute(userId: Int, conversationId: String) =
         "$CHAT_ROUTE_BASE/$userId/$conversationId"
 
+
+    // --- ADD NEW ROUTE ---
+    const val SIMPLE_LANDING_ROUTE_BASE = "simple_landing"
+    const val SIMPLE_LANDING_ROUTE = "$SIMPLE_LANDING_ROUTE_BASE/{${NavArguments.USER_ID}}"
+    fun createSimpleLandingRoute(userId: Int) = "$SIMPLE_LANDING_ROUTE_BASE/$userId"
+    // --- END ADD NEW ROUTE ---
     // Settings Route (Placeholder for later)
     // const val SETTINGS_ROUTE = "settings/{userId}"
 }

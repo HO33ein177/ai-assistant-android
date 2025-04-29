@@ -5,7 +5,6 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.bio.AudioRecorderManager
-import com.example.bio.data.local.dao.ApiTokenDao
 import com.example.bio.data.local.dao.MessageDao
 import com.example.bio.data.local.entity.Message
 import com.google.ai.client.generativeai.GenerativeModel
@@ -28,449 +27,395 @@ import java.io.IOException
 import java.util.UUID
 import javax.inject.Inject
 
-// Use your package name
-
-// Import your data layer classes
 
 // Define constants for sender types
 const val SENDER_USER = "user"
 const val SENDER_AI = "ai"
+private const val TAG = "ChatViewModel"
 
-// Update constructor to accept DAOs
+// !!! INSECURE: Hardcoded API Key - For temporary testing ONLY !!!
+// Replace "YOUR_API_KEY_HERE" with your actual Gemini API Key
+private const val HARDCODED_API_KEY = "AIzaSyD9s7AsAjgdSTlMvASKBZLuQVcpHjnT88Y"
+// !!! !!!
+
 @HiltViewModel
 class ChatViewModel @Inject constructor(
-
-    private val messageDao: MessageDao, // Inject MessageDao
-    private val apiTokenDao: ApiTokenDao,   // Inject ApiTokenDao
+    private val messageDao: MessageDao,
+    // Remove apiTokenDao from constructor if no longer used
+    // private val apiTokenDao: ApiTokenDao,
     @ApplicationContext private val applicationContext: Context,
 ) : ViewModel() {
 
-    // Keep existing state flows
     private val _chatHistory = MutableStateFlow<List<ChatMessage>>(emptyList())
-    val chatHistory: StateFlow<List<ChatMessage>> = _chatHistory.asStateFlow()
+    open val chatHistory: StateFlow<List<ChatMessage>> = _chatHistory.asStateFlow()
 
     private val _isLoading = MutableStateFlow(false)
-    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+    open val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
     private val _isRecording = MutableStateFlow(false)
-    val isRecording: StateFlow<Boolean> = _isRecording.asStateFlow()
+    open val isRecording: StateFlow<Boolean> = _isRecording.asStateFlow()
 
-    // Add state for API key and GenerativeModel (initialized later)
-    private val _apiKey = MutableStateFlow<String?>(null)
-    private var generativeModel: GenerativeModel? = null // Make nullable
+    // No longer needed if key is hardcoded
+    // private val _apiKey = MutableStateFlow<String?>(null)
+    private var generativeModel: GenerativeModel? = null
 
-    // Store current user and conversation IDs
     private var currentUserId: Int? = null
     private var currentConversationId: String? = null
     private var historyLoadingJob: Job? = null
 
-    // Keep AudioRecorderManager
     private val audioRecorder = AudioRecorderManager(applicationContext)
 
-    // No init block needed anymore, initialization happens in loadDataForConversation
 
-    // Function to load data for a specific user and conversation
-    fun loadDataForConversation(userId: Int, conversationId: String) {
-        if (currentUserId == userId && currentConversationId == conversationId) {
-            Log.d(
-                "ChatViewModel",
-                "Data already loaded for user $userId, conversation $conversationId"
-            )
-            return // Avoid reloading if already loaded
+    open fun loadDataForConversation(userId: Int, conversationId: String) {
+        Log.d(TAG, "loadDataForConversation called for userId: $userId, conversationId: $conversationId")
+        // Check if already initialized for this conversation
+        // No need to check userId against the key source anymore
+        if (currentConversationId == conversationId && generativeModel != null) {
+            Log.d(TAG, "Model already initialized for this conversation. Skipping re-initialization.")
+            // Still load history in case it changed
+            loadAndObserveHistory(userId, conversationId)
+            return
         }
 
-        Log.d("ChatViewModel", "Loading data for user $userId, conversation $conversationId")
-        currentUserId = userId
+        Log.d(TAG, "Starting data loading process...")
+        currentUserId = userId // Still store current user ID if needed for DB
         currentConversationId = conversationId
-        _chatHistory.value = emptyList() // Clear previous history
-        _isLoading.value = true // Show loading indicator
+        _chatHistory.value = emptyList()
+        Log.d(TAG, "Setting isLoading = true")
+        _isLoading.value = true
 
-        // Cancel any previous loading job
         historyLoadingJob?.cancel()
+        Log.d(TAG, "Cancelled previous history loading job (if any).")
 
         viewModelScope.launch {
-            // 1. Fetch API Key
-            val token = fetchApiKey(userId)
-            if (token == null) {
-                handleError("API Key not found for user $userId. Please set it in settings.", null)
-                _isLoading.value = false
-                return@launch // Stop loading if no key
-            }
-            _apiKey.value = token
+            Log.d(TAG, "Data loading coroutine started.")
 
-            // 2. Initialize Generative Model (only if key is valid)
-            initializeGenerativeModel(token)
+            // --- Use Hardcoded Key ---
+            val token = HARDCODED_API_KEY
+            if (token == "YOUR_API_KEY_HERE" || token.isBlank()) {
+                Log.e(TAG, "*** API Key is not set in the HARDCODED_API_KEY constant! ***")
+                handleError("API Key not configured in source code.", null)
+                Log.d(TAG, "Setting isLoading = false (Hardcoded key missing)")
+                _isLoading.value = false
+                return@launch
+            }
+            Log.d(TAG, "Using hardcoded API Key.")
+            // --- End Hardcoded Key Usage ---
+
+            // --- Remove DB Fetch ---
+            // Log.d(TAG, "Attempting to fetch API key for userId: $userId")
+            // val token = fetchApiKey(userId) // Remove this call
+            // if (token == null) { ... } // Remove this block
+            // _apiKey.value = token // Remove this
+            // Log.d(TAG, "API Key fetched successfully.") // Remove this
+            // --- End Remove DB Fetch ---
+
+
+            Log.d(TAG, "Attempting to initialize Generative Model.")
+            initializeGenerativeModel(token) // Use the hardcoded token directly
             if (generativeModel == null) {
+                Log.e(TAG, "Generative Model initialization failed.")
                 handleError("Failed to initialize AI Model with the provided key.", null)
+                Log.d(TAG, "Setting isLoading = false (Model init failed)")
                 _isLoading.value = false
-                return@launch // Stop if model init fails
+                return@launch
             }
+            Log.d(TAG, "Generative Model initialized successfully.")
 
-            // 3. Load Chat History
+            Log.d(TAG, "Attempting to load and observe history.")
+            // Pass the actual userId needed for the database query
             loadAndObserveHistory(userId, conversationId)
-            // Loading state will be set to false inside loadAndObserveHistory's catch/finally
         }
     }
 
-    // Helper to fetch API Key
+    // --- fetchApiKey function is no longer needed ---
+    /*
     private suspend fun fetchApiKey(userId: Int): String? {
-        return withContext(Dispatchers.IO) {
-            try {
-                apiTokenDao.getApiToken(userId)?.geminiApiKey
-            } catch (e: Exception) {
-                Log.e("ChatViewModel", "Error fetching API key for user $userId", e)
-                null
-            }
-        }
+        // ... implementation ...
     }
+    */
 
-    // Helper to initialize GenerativeModel
+    // --- initializeGenerativeModel remains the same ---
     private fun initializeGenerativeModel(apiKey: String) {
         try {
-            val config = generationConfig { /* Add your specific config if needed */ }
+            val config = generationConfig { /* Add specific config if needed */ }
             generativeModel = GenerativeModel(
-                // Use a model known to support your needs (e.g., text, audio)
                 modelName = "gemini-1.5-flash",
-                apiKey = apiKey, // Use the fetched key
+                apiKey = apiKey,
                 generationConfig = config
             )
-            Log.d("ChatViewModel", "GenerativeModel initialized successfully.")
+            Log.i(TAG, "[initializeGenerativeModel] Success.")
         } catch (e: Exception) {
-            Log.e("ChatViewModel", "Failed to initialize GenerativeModel", e)
-            generativeModel = null // Ensure it's null on failure
+            Log.e(TAG, "[initializeGenerativeModel] Failed", e)
+            generativeModel = null
         }
     }
 
 
-    // Helper to load and observe history from DB
+    // --- loadAndObserveHistory remains the same ---
     private fun loadAndObserveHistory(userId: Int, conversationId: String) {
+        // ... (Keep existing implementation, ensure it uses the passed userId for the DB query) ...
+        Log.d(TAG, "loadAndObserveHistory started for userId: $userId, conversationId: $conversationId")
         historyLoadingJob = viewModelScope.launch {
-            messageDao.getMessagesForConversation(userId, conversationId)
-                .catch { throwable -> // Explicitly name the exception throwable
-                    // Pass the caught throwable to handleError
-                    handleError("Error loading chat history: ${throwable.localizedMessage}", throwable as? Exception ?: RuntimeException(throwable)) // Cast or wrap if needed
-                    _isLoading.value = false // Stop loading on error
+            Log.d(TAG, "History loading coroutine launched.")
+            messageDao.getMessagesForConversation(userId, conversationId) // Ensure userId is used here
+                .catch { throwable ->
+                    Log.e(TAG, "Error collecting chat history flow", throwable)
+                    handleError("Error loading chat history: ${throwable.localizedMessage}", throwable as? Exception ?: RuntimeException(throwable))
+                    Log.d(TAG, "Setting isLoading = false (History flow catch block)")
+                    _isLoading.value = false
                 }
                 .collect { dbMessages ->
-                    Log.d("ChatViewModel", "Loaded ${dbMessages.size} messages from DB.")
-                    // Map database Message objects to UI ChatMessage objects
+                    Log.d(TAG, "Collected ${dbMessages.size} messages from DB.")
                     val uiMessages = dbMessages.map { dbMsg ->
                         ChatMessage(
-                            text = dbMsg.content, // Use the correct content field
+                            text = dbMsg.content,
                             isFromUser = dbMsg.sender == SENDER_USER,
-                            isError = false, // Assume DB messages are not errors initially
-                            // Determine message type based on audio path or other logic if needed
+                            isError = false,
                             messageType = if (dbMsg.audioPath != null) MessageType.AUDIO else MessageType.TEXT,
                             audioFilePath = dbMsg.audioPath
                         )
                     }
                     _chatHistory.value = uiMessages
-                    _isLoading.value = false // Stop loading once history is processed
-                    Log.d("ChatViewModel", "Chat history updated in UI.")
+                    Log.d(TAG, "Chat history updated in UI state.")
+                    Log.d(TAG, "Setting isLoading = false (History flow collect block finished)")
+                    _isLoading.value = false
                 }
+            Log.d(TAG, "History flow collection finished or job cancelled.")
+            if (_isLoading.value) {
+                Log.w(TAG, "History flow completed, but isLoading was still true. Setting to false.")
+                _isLoading.value = false
+            }
+        }
+        historyLoadingJob?.invokeOnCompletion { throwable ->
+            if (throwable != null && throwable !is kotlinx.coroutines.CancellationException) {
+                Log.e(TAG, "History loading job completed with error", throwable)
+                if (_isLoading.value) {
+                    Log.w(TAG, "Setting isLoading = false (History job completed with error)")
+                    _isLoading.value = false
+                }
+            } else if (throwable is kotlinx.coroutines.CancellationException) {
+                Log.d(TAG, "History loading job cancelled.")
+            } else {
+                Log.d(TAG, "History loading job completed successfully.")
+                if (_isLoading.value) {
+                    Log.w(TAG, "History job succeeded, but isLoading was still true. Setting to false.")
+                    _isLoading.value = false
+                }
+            }
         }
     }
 
-
-    // Modified sendMessage
-    fun sendMessage(userInput: String) {
-        val userId = currentUserId ?: return // Need userId
-        val conversationId = currentConversationId ?: return // Need conversationId
-        val model = generativeModel ?: run { // Check if model is initialized
+    // --- sendMessage, startRecordingAudio, stopRecordingAudioAndSend, etc. remain the same ---
+    // Ensure they use currentUserId when creating Message objects for DB insertion
+    open fun sendMessage(userInput: String) {
+        val userId = currentUserId ?: return run { Log.e(TAG, "[sendMessage] Failed: currentUserId is null") }
+        val conversationId = currentConversationId ?: return run { Log.e(TAG, "[sendMessage] Failed: currentConversationId is null") }
+        val model = generativeModel ?: return run {
+            Log.e(TAG, "[sendMessage] Failed: generativeModel is null")
             handleError("AI Model not ready.", null)
-            return
         }
 
+        if (userInput.isBlank()) return run { Log.w(TAG, "[sendMessage] Ignored: userInput is blank") }
+        if (_isLoading.value) return run { Log.w(TAG, "[sendMessage] Ignored: isLoading is true") }
+        if (_isRecording.value) return run { Log.w(TAG, "[sendMessage] Ignored: isRecording is true") }
 
-        if (userInput.isBlank() || _isLoading.value || _isRecording.value) return
-
-        _isLoading.value = true
-
-        // Create UI message
-        val userChatMessage = ChatMessage(
-            text = userInput,
-            isFromUser = true,
-            messageType = MessageType.TEXT
-        )
-        // Update UI immediately
-        _chatHistory.update { it + userChatMessage }
-
-        // Create Database message
-        val userDbMessage = Message(
-            userId = userId,
-            conversationId = conversationId,
-            sender = SENDER_USER,
-            content = userInput,
-            timestamp = System.currentTimeMillis() // Explicitly set timestamp if needed elsewhere
-        )
-
+        // ... rest of sendMessage ...
+        // Ensure 'userId' is used when creating userDbMessage and aiDbMessage
+        val userDbMessage = Message(userId = userId, conversationId = conversationId, sender = SENDER_USER, content = userInput, timestamp = System.currentTimeMillis())
+        // ... API call ...
+        // Inside try block:
+//         val aiDbMessage = Message(userId = userId, conversationId = conversationId, sender = SENDER_AI, content = responseText, timestamp = System.currentTimeMillis())
+        // ... rest of sendMessage ...
         viewModelScope.launch {
-            // Save user message to DB (background)
+            Log.d(TAG, "[sendMessage] Saving user message to DB...")
             withContext(Dispatchers.IO) {
                 try {
-                    messageDao.insert(userDbMessage)
-                    Log.d("ChatViewModel", "User message saved to DB.")
+                    messageDao.insert(userDbMessage) // Ensure userId used correctly here
+                    Log.d(TAG, "[sendMessage] User message saved to DB successfully.")
                 } catch (e: Exception) {
-                    Log.e("ChatViewModel", "Failed to save user message to DB", e)
-                    // Optionally: Update the UI message to show a save error
+                    Log.e(TAG, "[sendMessage] Failed to save user message to DB", e)
                 }
             }
 
-            // Call API
+            Log.d(TAG, "[sendMessage] Calling Gemini API for text generation...")
             try {
                 val response = model.generateContent(userInput)
                 val responseText = response.text ?: "Sorry, I couldn't generate a text response."
+                Log.d(TAG, "[sendMessage] Received Gemini response: '$responseText'")
 
-                // Create UI message for AI response
-                val aiChatMessage = ChatMessage(
-                    text = responseText,
-                    isFromUser = false,
-                    messageType = MessageType.TEXT
-                )
-                // Update UI
+                val aiChatMessage = ChatMessage(text = responseText, isFromUser = false, messageType = MessageType.TEXT)
                 _chatHistory.update { it + aiChatMessage }
+                Log.d(TAG, "[sendMessage] Updated UI with AI message.")
 
-
-                // Create Database message for AI response
-                val aiDbMessage = Message(
-                    userId = userId,
-                    conversationId = conversationId,
-                    sender = SENDER_AI,
-                    content = responseText,
-                    timestamp = System.currentTimeMillis()
-                )
-                // Save AI message to DB (background)
+                val aiDbMessage = Message(userId = userId, conversationId = conversationId, sender = SENDER_AI, content = responseText, timestamp = System.currentTimeMillis()) // Ensure userId used correctly here
+                Log.d(TAG, "[sendMessage] Saving AI message to DB...")
                 withContext(Dispatchers.IO) {
                     try {
                         messageDao.insert(aiDbMessage)
-                        Log.d("ChatViewModel", "AI message saved to DB.")
+                        Log.d(TAG, "[sendMessage] AI message saved to DB successfully.")
                     } catch (e: Exception) {
-                        Log.e("ChatViewModel", "Failed to save AI message to DB", e)
+                        Log.e(TAG, "[sendMessage] Failed to save AI message to DB", e)
                     }
                 }
             } catch (e: Exception) {
+                Log.e(TAG, "[sendMessage] API Error (Text)", e)
                 handleError("API Error (Text): ${e.localizedMessage}", e)
             } finally {
+                Log.d(TAG, "[sendMessage] Setting isLoading = false (finally block)")
                 _isLoading.value = false
             }
         }
     }
 
-    // --- Audio Recording Functions ---
 
-    fun startRecordingAudio() {
-        if (_isLoading.value || _isRecording.value) return
+    open fun startRecordingAudio() {
+        if (_isLoading.value) return run { Log.w(TAG, "[startRecordingAudio] Ignored: isLoading is true") }
+        if (_isRecording.value) return run { Log.w(TAG, "[startRecordingAudio] Ignored: already recording") }
+        // ... rest of startRecordingAudio ...
         viewModelScope.launch {
+            Log.d(TAG, "[startRecordingAudio] Attempting to start recording...")
             val success = audioRecorder.startRecording() != null
             if (success) {
                 _isRecording.value = true
-                Log.i("ChatViewModel", "Recording Started")
+                Log.i(TAG, "[startRecordingAudio] Recording Started successfully.")
             } else {
+                Log.e(TAG, "[startRecordingAudio] Failed to start recording.")
                 handleError("Error: Could not start recording.", null)
-                Log.e("ChatViewModel", "Failed to start recording")
             }
         }
     }
 
-    // Modified stopRecordingAudioAndSend
-    fun stopRecordingAudioAndSend(prompt: String = "Describe this audio") {
-        val userId = currentUserId ?: return // Need userId
-        val conversationId = currentConversationId ?: return // Need conversationId
-        val model = generativeModel ?: run { // Check if model is initialized
+
+    open fun stopRecordingAudioAndSend(prompt: String = "Describe this audio") {
+        val userId = currentUserId ?: return run { Log.e(TAG, "[stopRecording] Failed: currentUserId is null") }
+        val conversationId = currentConversationId ?: return run { Log.e(TAG, "[stopRecording] Failed: currentConversationId is null") }
+        val model = generativeModel ?: return run {
+            Log.e(TAG, "[stopRecording] Failed: generativeModel is null")
             handleError("AI Model not ready.", null)
-            return
         }
-
-        if (!_isRecording.value) return
-
+        if (!_isRecording.value) return run { Log.w(TAG, "[stopRecording] Ignored: not recording") }
+        // ... rest of stopRecordingAudioAndSend ...
+        // Ensure 'userId' is used when creating audioDbMessage and aiTextDbMessage
         viewModelScope.launch {
+            Log.d(TAG, "[stopRecording] Setting isRecording = false, isLoading = true")
             _isRecording.value = false
             _isLoading.value = true
 
             val tempAudioFilePath = audioRecorder.stopRecording()
 
             if (tempAudioFilePath != null) {
-                Log.i("ChatViewModel", "Recording Stopped, temp file: $tempAudioFilePath.")
+                Log.i(TAG, "[stopRecording] Recording stopped. Temp file: $tempAudioFilePath.")
                 val tempAudioFile = File(tempAudioFilePath)
                 var persistentAudioFilePath: String? = null
 
                 if (tempAudioFile.exists() && tempAudioFile.length() > 0) {
-                    // --- Copy to Persistent Storage ---
+                    Log.d(TAG, "[stopRecording] Temp file exists and is not empty. Copying...")
                     persistentAudioFilePath = copyAudioToInternalStorage(tempAudioFile)
 
                     if (persistentAudioFilePath != null) {
-                        // --- Add AUDIO message to UI ---
-                        val audioChatMessage = ChatMessage(
-                            text = prompt, // Store the prompt
-                            isFromUser = true,
-                            messageType = MessageType.AUDIO,
-                            audioFilePath = persistentAudioFilePath // Pass persistent path
-                        )
+                        Log.d(TAG, "[stopRecording] Audio copied to persistent storage: $persistentAudioFilePath")
+                        val audioChatMessage = ChatMessage(text = prompt, isFromUser = true, messageType = MessageType.AUDIO, audioFilePath = persistentAudioFilePath)
                         _chatHistory.update { it + audioChatMessage }
-                        Log.d(
-                            "ChatViewModel",
-                            "Added audio message to UI. Path: $persistentAudioFilePath"
-                        )
+                        Log.d(TAG, "[stopRecording] Added audio message to UI.")
 
-                        // --- Save AUDIO message placeholder to DB ---
-                        val audioDbMessage = Message(
-                            userId = userId,
-                            conversationId = conversationId,
-                            sender = SENDER_USER,
-                            content = prompt, // Store the prompt in content
-                            timestamp = System.currentTimeMillis(),
-                            audioPath = persistentAudioFilePath // Store the path in DB
-                        )
-                        withContext(Dispatchers.IO) {
-                            try {
-                                messageDao.insert(audioDbMessage)
-                                Log.d("ChatViewModel", "Audio message placeholder saved to DB.")
-                            } catch (e: Exception) {
-                                Log.e(
-                                    "ChatViewModel",
-                                    "Failed to save audio message placeholder to DB",
-                                    e
-                                )
-                            }
-                        }
+                        val audioDbMessage = Message(userId = userId, conversationId = conversationId, sender = SENDER_USER, content = prompt, timestamp = System.currentTimeMillis(), audioPath = persistentAudioFilePath) // Ensure userId used correctly here
+                        Log.d(TAG, "[stopRecording] Saving audio message placeholder to DB...")
+                        withContext(Dispatchers.IO) { try { messageDao.insert(audioDbMessage); Log.d(TAG, "[stopRecording] Audio placeholder saved.") } catch (e: Exception) { Log.e(TAG, "[stopRecording] Failed to save audio placeholder", e) } }
 
-
-                        // --- Send to API ---
+                        Log.d(TAG, "[stopRecording] Sending audio to Gemini API...")
                         try {
                             val audioBytes = tempAudioFile.readBytes()
-                            val inputContent = content {
-                                text(prompt)
-                                part(BlobPart(mimeType = "audio/m4a", blob = audioBytes))
-                            }
+                            val inputContent = content { text(prompt); part(BlobPart(mimeType = "audio/m4a", blob = audioBytes)) }
 
-                            Log.d("ChatViewModel", "Sending content with audio to Gemini...")
-                            val response = model.generateContent(inputContent) // Use initialized model
-                            Log.d("ChatViewModel", "Received response from Gemini.")
+                            val response = model.generateContent(inputContent)
                             val responseText = response.text ?: "Sorry, I couldn't process the audio."
+                            Log.d(TAG, "[stopRecording] Received Gemini response: '$responseText'")
 
-                            // --- Add API response (TEXT) to UI ---
-                            val aiTextChatMessage = ChatMessage(
-                                text = responseText,
-                                isFromUser = false,
-                                messageType = MessageType.TEXT
-                            )
+                            val aiTextChatMessage = ChatMessage(text = responseText, isFromUser = false, messageType = MessageType.TEXT)
                             _chatHistory.update { it + aiTextChatMessage }
+                            Log.d(TAG, "[stopRecording] Updated UI with AI response.")
 
-
-                            // --- Save API response (TEXT) to DB ---
-                            val aiTextDbMessage = Message(
-                                userId = userId,
-                                conversationId = conversationId,
-                                sender = SENDER_AI,
-                                content = responseText,
-                                timestamp = System.currentTimeMillis()
-                            )
-                            withContext(Dispatchers.IO) {
-                                try {
-                                    messageDao.insert(aiTextDbMessage)
-                                    Log.d("ChatViewModel", "AI response (from audio) saved to DB.")
-                                } catch (e: Exception) {
-                                    Log.e(
-                                        "ChatViewModel",
-                                        "Failed to save AI response (from audio) to DB",
-                                        e
-                                    )
-                                }
-                            }
-
+                            val aiTextDbMessage = Message(userId = userId, conversationId = conversationId, sender = SENDER_AI, content = responseText, timestamp = System.currentTimeMillis()) // Ensure userId used correctly here
+                            Log.d(TAG, "[stopRecording] Saving AI response to DB...")
+                            withContext(Dispatchers.IO) { try { messageDao.insert(aiTextDbMessage); Log.d(TAG, "[stopRecording] AI response saved.") } catch (e: Exception) { Log.e(TAG, "[stopRecording] Failed to save AI response", e) } }
                         } catch (e: IOException) {
+                            Log.e(TAG, "[stopRecording] Error reading audio file bytes", e)
                             handleError("Error reading audio file bytes: ${e.localizedMessage}", e)
                         } catch (e: Exception) {
+                            Log.e(TAG, "[stopRecording] API Error (Audio)", e)
                             handleError("API Error (Audio): ${e.localizedMessage}", e)
                         } finally {
-                            // Clean up TEMPORARY audio file
+                            Log.d(TAG, "[stopRecording] Deleting temporary audio file: $tempAudioFilePath")
                             try {
-                                if (tempAudioFile.delete()) {
-                                    Log.d(
-                                        "ChatViewModel",
-                                        "Deleted temp audio file: $tempAudioFilePath"
-                                    )
-                                } else {
-                                    Log.w(
-                                        "ChatViewModel",
-                                        "Failed to delete temp audio file: $tempAudioFilePath"
-                                    )
-                                }
-                            } catch (e: Exception) {
-                                Log.e(
-                                    "ChatViewModel",
-                                    "Error deleting temp audio file: $tempAudioFilePath",
-                                    e
-                                )
-                            }
-                        } // End API try/catch/finally
-
-                    } else { // Copying failed
+                                if (tempAudioFile.delete()) { Log.d(TAG, "[stopRecording] Temp file deleted.") }
+                                else { Log.w(TAG, "[stopRecording] Failed to delete temp file.") }
+                            } catch (e: Exception) { Log.e(TAG, "[stopRecording] Error deleting temp file", e) }
+                        }
+                    } else {
+                        Log.e(TAG, "[stopRecording] Failed to copy audio to persistent storage.")
                         handleError("Error: Failed to copy audio to persistent storage.", null)
                         tempAudioFile.delete()
-                    } // End check persistentAudioFilePath != null
-                } else { // Temp file missing/empty
+                    }
+                } else {
+                    Log.e(TAG, "[stopRecording] Recorded audio file is missing or empty: $tempAudioFilePath")
                     handleError("Error: Recorded audio file is missing or empty.", null)
-                    tempAudioFile.delete()
-                } // End check tempAudioFile exists
-            } else { // stopRecording failed
+                    if (tempAudioFile.exists()) tempAudioFile.delete()
+                }
+            } else {
+                Log.e(TAG, "[stopRecording] Failed to stop recording or get file path.")
                 handleError("Error: Failed to stop recording or get file path.", null)
-            } // End check tempAudioFilePath != null
+            }
 
-            _isLoading.value = false // Ensure loading stops
-        } // End viewModelScope.launch
+            Log.d(TAG, "[stopRecording] Setting isLoading = false (end of function)")
+            _isLoading.value = false
+        }
     }
 
-    // --- Helper function to copy audio (remains the same) ---
+    // --- copyAudioToInternalStorage, handleError, onCleared remain the same ---
     private suspend fun copyAudioToInternalStorage(sourceFile: File): String? {
-        // ... (implementation is the same as before) ...
-        return withContext(Dispatchers.IO) { // Perform file IO on background thread
+        Log.d(TAG, "[copyAudio] Copying ${sourceFile.absolutePath} to internal storage.")
+        return withContext(Dispatchers.IO) {
             try {
-                val internalFilesDir = applicationContext.filesDir // App's private internal storage
-                if (!internalFilesDir.exists()) {
-                    internalFilesDir.mkdirs()
-                }
-                // Create a unique filename
+                val internalFilesDir = applicationContext.filesDir
+                if (!internalFilesDir.exists()) internalFilesDir.mkdirs()
                 val destinationFileName = "audio_${UUID.randomUUID()}.m4a"
                 val destinationFile = File(internalFilesDir, destinationFileName)
-
                 sourceFile.copyTo(destinationFile, overwrite = true)
-                Log.d("ChatViewModel", "Audio copied to: ${destinationFile.absolutePath}")
-                destinationFile.absolutePath // Return the new path
+                Log.d(TAG, "[copyAudio] Copied successfully to: ${destinationFile.absolutePath}")
+                destinationFile.absolutePath
             } catch (e: IOException) {
-                Log.e("ChatViewModel", "Failed to copy audio file: ${e.message}", e)
-                null // Return null on failure
+                Log.e(TAG, "[copyAudio] Failed to copy audio file", e)
+                null
             }
         }
     }
 
-    // --- Modified Helper to add ERROR messages TO UI ONLY ---
-    // DB saving happens where the error occurs if needed
     private fun handleError(message: String, exception: Exception?) {
-        Log.e("ChatViewModel", message, exception)
-        // Create an error ChatMessage for the UI
+        Log.e(TAG, "handleError called: $message", exception)
         val errorChatMessage = ChatMessage(
-            text = "Error: ${
-                message.substringBefore('\n').substringBefore(':')
-            }", // Keep UI error concise
-            isFromUser = false, // Errors are typically shown as system/AI messages
+            text = "Error: ${message.substringBefore('\n').substringBefore(':')}",
+            isFromUser = false,
             isError = true,
-            messageType = MessageType.TEXT // Display errors as text
+            messageType = MessageType.TEXT
         )
-        // Update UI StateFlow
         _chatHistory.update { it + errorChatMessage }
-        // Optionally, you might want to save this error to the DB as well
-        // Depends on whether you want errors persisted in history
+        Log.d(TAG, "Added error message to UI chat history.")
+        if (_isLoading.value) {
+            Log.d(TAG, "Setting isLoading = false from handleError.")
+            _isLoading.value = false
+        }
+        if (_isRecording.value) {
+            Log.d(TAG, "Setting isRecording = false from handleError.")
+            _isRecording.value = false
+        }
     }
-
 
     override fun onCleared() {
         super.onCleared()
+        Log.d(TAG, "onCleared called. Releasing recorder and cancelling jobs.")
         audioRecorder.releaseRecorder()
-        historyLoadingJob?.cancel() // Cancel loading job if ViewModel is cleared
-        Log.d("ChatViewModel", "ViewModel cleared, recorder released, jobs cancelled.")
+        historyLoadingJob?.cancel()
     }
 
-    // Remove the old factory companion object if it exists
-    // companion object { ... } // DELETE THIS
 }

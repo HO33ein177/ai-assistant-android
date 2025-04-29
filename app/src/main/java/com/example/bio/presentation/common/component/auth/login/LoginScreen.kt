@@ -1,5 +1,6 @@
 package com.example.bio.presentation.common.component.auth.login
 
+import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
@@ -45,7 +46,7 @@ import com.example.bio.presentation.common.component.reusable.GradientBox
 import com.example.bio.presentation.common.component.reusable.MyBasicTextField
 import com.example.bio.presentation.common.component.reusable.RoundedButton
 
-
+private const val TAG = "LoginScreen"
 @Composable
 fun LoginScreen(
     navController: NavHostController,
@@ -65,11 +66,26 @@ fun LoginScreen(
         when (val state = loginState) {
             is LoginResult.Success -> {
                 Toast.makeText(context, "Login Successful!", Toast.LENGTH_SHORT).show()
-                // Navigate to Conversation List on success
-                navController.navigate(AppDestinations.createConversationListRoute(state.userId)) {
-                    // Clear the login screen and anything before it (like Splash) from backstack
-                    popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                // --- NAVIGATION CHANGE ---
+                // Generate a new conversation ID
+//                val newConversationId = UUID.randomUUID().toString()
+                // Uses the SAME ID every time
+                val commonConversationId = "GLOBAL_CHAT_ID" // Or any fixed string you choose
+                val userId = state.userId
+
+                Log.d(TAG, "Login successful. Navigating to ChatScreen with userId: $userId, conversationId: $commonConversationId")
+
+                // Navigate to Chat Screen instead of Conversation List
+//                navController.navigate(AppDestinations.createChatRoute(state.userId, newConversationId)) {
+//                    // Clear the login screen and anything before it from backstack
+//                    popUpTo(navController.graph.startDestinationId) { inclusive = true }
+//                }
+
+                navController.navigate(AppDestinations.createChatRoute(userId, commonConversationId)) {
+                    // Try popping only the login screen itself
+                    popUpTo(AppDestinations.LOGIN_ROUTE) { inclusive = true }
                 }
+                // --- END NAVIGATION CHANGE ---
                 viewModel.resetLoginState() // Reset state after navigation handled
             }
             is LoginResult.Error -> {
