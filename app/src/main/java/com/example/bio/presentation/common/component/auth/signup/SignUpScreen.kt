@@ -49,252 +49,230 @@ import com.example.bio.presentation.common.component.auth.UserViewModel
 import com.example.bio.presentation.common.component.theme.BioTheme
 
 
+
+import android.util.Log
+import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Email
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Person // Example for name
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import com.example.bio.data.local.dao.UserDao // Import UserDao
+import com.example.bio.data.local.entity.User // Import User entity
+import com.example.bio.presentation.common.component.reusable.MyBasicTextField
+import com.example.bio.presentation.common.component.reusable.RoundedButton
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuthUserCollisionException
+import com.google.firebase.auth.FirebaseAuthWeakPasswordException
+import dagger.hilt.android.EntryPointAccessors
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
+
+// Define Signup states
+sealed interface SignupResult {
+    data object Idle : SignupResult
+    data object Loading : SignupResult
+    // Pass the local DB user ID on success
+    data class Success(val userId: Long) : SignupResult
+    data class Error(val message: String) : SignupResult
+}
+
+private const val TAG = "SignupScreen"
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SignupScreen(
     navController: NavController,
-    onSignupSuccess: (userId: Long) -> Unit, // Changed to Long to match ViewModel potentially
-    viewModel: UserViewModel = hiltViewModel() // Get instance via Hilt
+    // Callback to notify MainActivity/AppNavigation about success
+    // Pass the local database user ID (Long) after successful creation
+    onSignupSuccess: (Long) -> Unit
 ) {
-    val context = LocalContext.current // For Toasts
+    // --- State Management ---
+    var name by remember { mutableStateOf("") } // Add name state if needed
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
+    var signupStatus by remember { mutableStateOf<SignupResult>(SignupResult.Idle) }
+    val isLoading = signupStatus is SignupResult.Loading
 
-    // --- Read State from ViewModel ---
-    val username by viewModel.username
-    val email by viewModel.email
-    val password by viewModel.password
-    val confirmPassword by viewModel.confirmPassword
-    val signupState by viewModel.signupState
+    // --- Coroutine Scope & Context ---
+    val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
 
-    // --- Local derived state ---
-    val passwordsMatch = password.isNotEmpty() && confirmPassword.isNotEmpty() && password == confirmPassword
-    val fieldsNotEmpty = username.isNotBlank() && email.isNotBlank() && password.isNotBlank() && confirmPassword.isNotBlank()
-    val isLoading = signupState is SignupState.Loading
-    // Extract error message *only* when state is Error
-    val signupError = (signupState as? SignupState.Error)?.message
+    // --- Get Dependencies (FirebaseAuth and UserDao) ---
+    // Since we might not have a ViewModel here, we get dependencies via Hilt EntryPoint
+    val hiltEntryPoint = EntryPointAccessors.fromActivity(
+        context as androidx.activity.ComponentActivity, // Assuming context is from an Activity
+        SignupScreenEntryPoint::class.java
+    )
+    val firebaseAuth = hiltEntryPoint.getFirebaseAuth()
+    val userDao = hiltEntryPoint.getUserDao()
 
-    // --- Handle Signup State Changes (Side Effects) ---
-    LaunchedEffect(signupState) {
-        when (val state = signupState) {
-            is SignupState.Success -> {
+    // --- UI Feedback ---
+    LaunchedEffect(signupStatus) {
+        when (val status = signupStatus) {
+            is SignupResult.Success -> {
                 Toast.makeText(context, "Signup Successful!", Toast.LENGTH_SHORT).show()
-                onSignupSuccess(state.userId) // Trigger navigation
-                viewModel.resetSignupState() // Reset state after navigation handled
+                onSignupSuccess(status.userId) // Call the callback with the local DB ID
             }
-            is SignupState.Error -> {
-                // Error message is displayed via the Text composable below
-                // Toast.makeText(context, state.message, Toast.LENGTH_LONG).show() // Optional Toast
-                viewModel.resetSignupState() // Reset state after showing error to allow retry
+            is SignupResult.Error -> {
+                Toast.makeText(context, status.message, Toast.LENGTH_LONG).show()
+                signupStatus = SignupResult.Idle // Reset status after showing error
             }
-            SignupState.Loading -> { /* UI handled by isLoading */ }
-            SignupState.Idle -> { /* Initial state */ }
+            else -> {} // Idle or Loading
         }
     }
 
-    BioTheme {
+    // --- Signup Logic ---
+    fun attemptSignup() {
+        // Basic Validation
+        if (email.isBlank() || password.isBlank() || confirmPassword.isBlank() || name.isBlank()) {
+            signupStatus = SignupResult.Error("Please fill in all fields.")
+            return
+        }
+        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+            signupStatus = SignupResult.Error("Invalid email format.")
+            return
+        }
+        if (password != confirmPassword) {
+            signupStatus = SignupResult.Error("Passwords do not match.")
+            return
+        }
+        // Add password strength check if desired
+
+        signupStatus = SignupResult.Loading
+
+        coroutineScope.launch {
+            try {
+                // 1. Create user in Firebase Authentication
+                Log.d(TAG, "Attempting Firebase user creation...")
+                val authResult = firebaseAuth.createUserWithEmailAndPassword(email, password).await()
+                val firebaseUser = authResult.user
+                Log.d(TAG, "Firebase user created successfully: UID=${firebaseUser?.uid}")
+
+                if (firebaseUser != null) {
+                    // 2. Create user in local Room database (WITHOUT password)
+                    // Use Firebase UID as a unique identifier if needed later,
+                    // or just store basic info. Here we store email and name.
+                    // IMPORTANT: Do NOT store the plain password locally.
+                    // We don't store the Firebase password hash either, as Firebase handles auth.
+                    val localUser = User(
+                        // id will be auto-generated by Room
+                        email = email,
+                        password = "", // Store empty string or null for password locally
+                        name = name,
+                        firebaseUid = firebaseUser.uid // Optional: Store Firebase UID
+                    )
+
+                    Log.d(TAG, "Attempting local DB user insertion...")
+                    // Insert into Room on a background thread
+                    val insertedUserId = withContext(Dispatchers.IO) {
+                        userDao.insert(localUser) // Assuming insert returns the new row ID (Long)
+                    }
+                    Log.d(TAG, "Local DB user inserted with ID: $insertedUserId")
+
+                    // 3. Report Success with the LOCAL Database ID
+                    signupStatus = SignupResult.Success(insertedUserId)
+
+                } else {
+                    // Should not happen if createUserWithEmailAndPassword succeeds, but handle defensively
+                    Log.e(TAG, "Firebase user was null after successful creation task.")
+                    signupStatus = SignupResult.Error("Signup failed: Could not get user details.")
+                }
+
+            } catch (e: FirebaseAuthWeakPasswordException) {
+                Log.w(TAG, "Signup failed: Weak password", e)
+                signupStatus = SignupResult.Error("Password is too weak (at least 6 characters).")
+            } catch (e: FirebaseAuthUserCollisionException) {
+                Log.w(TAG, "Signup failed: Email already in use", e)
+                signupStatus = SignupResult.Error("Email address is already registered.")
+            } catch (e: Exception) { // Catch other exceptions (network, DB insert, etc.)
+                Log.e(TAG, "Signup failed", e)
+                signupStatus = SignupResult.Error("Signup failed: ${e.localizedMessage}")
+            }
+        }
+    }
+
+    // --- UI ---
+    Scaffold(
+        topBar = { TopAppBar(title = { Text("Create Account") }) }
+    ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-                .padding(vertical = 16.dp, horizontal = 16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(paddingValues)
+                .padding(horizontal = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
-            Spacer(modifier = Modifier.height(60.dp))
-
-            // --- Logo and Title ---
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Image(
-                    modifier = Modifier.size(80.dp),
-                    painter = painterResource(id = R.drawable.logo), // ASSUMES logo exists
-                    contentDescription = "Logo"
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Soundwave",
-                    fontSize = 30.sp,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            Text(
-                text = "ایجاد حساب کاربری", // "Create Account"
-                color = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier.padding(top = 30.dp),
-                fontSize = 24.sp,
-                fontWeight = FontWeight.W900
-            )
-
-            Spacer(modifier = Modifier.height(30.dp))
-
-            // --- Username Field ---
-            TextField(
-                modifier = Modifier.fillMaxWidth(0.85f),
-                value = username,
-                // Call ViewModel update function
-                onValueChange = viewModel::onUsernameChange,
-                placeholder = { Text("نام کاربری", fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) }, // "Username"
-//                leadingIcon = {
-//                    Icon(
-//                        painter = painterResource(id = R.drawable.profile_picture), // ASSUMES profile_icon exists
-//                        contentDescription = null,
-//                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-//                    )
-//                },
-                colors = signupTextFieldColors(),
-                shape = RoundedCornerShape(12.dp),
-                singleLine = true,
-                isError = signupError != null // Indicate error if signup failed
+            // Add fields for Name, Email, Password, Confirm Password
+            MyBasicTextField(
+                value = name,
+                onValueChange = { name = it },
+                label = "Name",
+                trailingIcon = Icons.Outlined.Person,
+                modifier = Modifier.fillMaxWidth()
             )
             Spacer(modifier = Modifier.height(16.dp))
 
-            // --- Email Field ---
-            TextField(
-                modifier = Modifier.fillMaxWidth(0.85f),
+            MyBasicTextField(
                 value = email,
-                // Call ViewModel update function
-                onValueChange = viewModel::onEmailChange,
-                placeholder = { Text("آدرس ایمیل", fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) }, // "Email Address"
-                leadingIcon = {
-                    Icon(
-                        painter = painterResource(id = R.drawable.email_icon), // ASSUMES email_icon exists
-                        contentDescription = "",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                },
-                colors = signupTextFieldColors(),
-                shape = RoundedCornerShape(12.dp),
-                singleLine = true,
+                onValueChange = { email = it },
+                label = "Email Address",
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                isError = signupError != null
+                trailingIcon = Icons.Outlined.Email,
+                modifier = Modifier.fillMaxWidth()
             )
             Spacer(modifier = Modifier.height(16.dp))
 
-            // --- Password Field ---
-            TextField(
-                modifier = Modifier.fillMaxWidth(0.85f),
+            MyBasicTextField(
                 value = password,
-                // Call ViewModel update function
-                onValueChange = viewModel::onPasswordChange,
-                visualTransformation = PasswordVisualTransformation(),
-                placeholder = { Text("رمز عبور", fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) }, // "Password"
-                leadingIcon = {
-                    Icon(
-                        painter = painterResource(id = R.drawable.lock_icon), // ASSUMES lock_icon exists
-                        contentDescription = "",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                },
-                colors = signupTextFieldColors(),
-                shape = RoundedCornerShape(12.dp),
-                singleLine = true,
+                onValueChange = { password = it },
+                label = "Password",
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                isError = signupError != null || (password.isNotEmpty() && confirmPassword.isNotEmpty() && !passwordsMatch) // Show error if mismatched
+                visualTransformation = PasswordVisualTransformation(),
+                trailingIcon = Icons.Outlined.Lock,
+                modifier = Modifier.fillMaxWidth()
             )
             Spacer(modifier = Modifier.height(16.dp))
 
-            // --- Password Repeat Field ---
-            TextField(
-                modifier = Modifier.fillMaxWidth(0.85f),
+            MyBasicTextField(
                 value = confirmPassword,
-                // Call ViewModel update function
-                onValueChange = viewModel::onConfirmPasswordChange,
-                visualTransformation = PasswordVisualTransformation(),
-                placeholder = { Text("تکرار رمز عبور", fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) }, // "Repeat Password"
-                leadingIcon = {
-                    Icon(
-                        painter = painterResource(id = R.drawable.lock_icon), // ASSUMES lock_icon exists
-                        contentDescription = "",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                },
-                colors = signupTextFieldColors(),
-                shape = RoundedCornerShape(12.dp),
-                singleLine = true,
+                onValueChange = { confirmPassword = it },
+                label = "Confirm Password",
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                isError = signupError != null || (password.isNotEmpty() && confirmPassword.isNotEmpty() && !passwordsMatch) // Show error if mismatched
+                visualTransformation = PasswordVisualTransformation(),
+                trailingIcon = Icons.Outlined.Lock,
+                modifier = Modifier.fillMaxWidth()
             )
+            Spacer(modifier = Modifier.height(32.dp))
 
-            // Display validation/signup error message from ViewModel State
-            if (signupError != null) {
-                Text(
-                    text = signupError, // Display error message from ViewModel
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.padding(top = 8.dp).align(Alignment.End).padding(horizontal = 30.dp),
-                    textAlign = TextAlign.Right
-                )
-            }
-            // Display immediate password mismatch error
-            else if (password.isNotEmpty() && confirmPassword.isNotEmpty() && !passwordsMatch) {
-                Text(
-                    text = "رمزهای عبور مطابقت ندارند", // "Passwords do not match"
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.padding(top = 8.dp).align(Alignment.End).padding(horizontal = 30.dp),
-                    textAlign = TextAlign.Right
+            if (isLoading) {
+                CircularProgressIndicator()
+            } else {
+                RoundedButton(
+                    text = "Sign Up",
+                    onClick = { attemptSignup() },
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // --- Signup Button ---
-            Button(
-                onClick = {
-                    // Let ViewModel handle validation and creation
-                    viewModel.handleSignup()
-                },
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                contentPadding = PaddingValues(16.dp),
-                modifier = Modifier.fillMaxWidth(0.85f),
-                // Button enabled only if not loading AND passwords match (if both entered)
-                enabled = !isLoading && (password.isEmpty() || confirmPassword.isEmpty() || passwordsMatch)
-            ) {
-                if (isLoading) {
-                    CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
-                } else {
-                    Text(
-                        text = "ثبت نام", // "Sign Up"
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.W800
-                    )
-                }
-            }
-
-            // --- Link to Login ---
-            Row(
-                modifier = Modifier.fillMaxWidth(0.85f)
-                    .padding(top = 16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
-            ) {
-                TextButton(onClick = { navController.popBackStack() }) { // Go back to previous screen (Login)
-                    Text(
-                        text = "قبلا ثبت نام کرده اید؟ وارد شوید", // "Already have an account? Login"
-                        color = MaterialTheme.colorScheme.primary,
-                        fontSize = 16.sp
-                    )
-                }
+            Spacer(modifier = Modifier.height(16.dp))
+            TextButton(onClick = { navController.popBackStack() }) {
+                Text("Already have an account? Login")
             }
         }
     }
 }
 
-
-// Helper function for consistent TextField colors (keep as is)
-@Composable
-fun signupTextFieldColors(): TextFieldColors = TextFieldDefaults.colors(
-    unfocusedIndicatorColor = Color.Transparent,
-    focusedIndicatorColor = Color.Transparent,
-    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-    cursorColor = MaterialTheme.colorScheme.primary,
-    unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
-    focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
-    unfocusedLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-    focusedLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant
-)
-
-// Remove the History related composables and Preview from here
-// @Preview ...
-// fun Login_page_preview() { ... }
+// --- Hilt EntryPoint to get dependencies in Composable ---
+// Define this outside the Composable function, usually at the top level of the file
+@dagger.hilt.EntryPoint
+@dagger.hilt.InstallIn(dagger.hilt.android.components.ActivityComponent::class)
+interface SignupScreenEntryPoint {
+    fun getFirebaseAuth(): FirebaseAuth
+    fun getUserDao(): UserDao
+}

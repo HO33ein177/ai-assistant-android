@@ -2,25 +2,24 @@ package com.example.bio.data.local.dao
 
 import androidx.room.Dao
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import androidx.room.Update
 import com.example.bio.data.local.entity.User
 
 @Dao
-interface UserDao{
-    @Insert
-    suspend fun insert(user : User): Long // return the id of the inserted user
+interface UserDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(user: User): Long // Return the inserted row ID
 
-    @Update
-    suspend fun update(user: User)
-
-    @Query("SELECT * FROM users WHERE id = :userid")
-    suspend fun getUserById(userid: Int): User?
-
-    @Query("SELECT * FROM users WHERE username = :username")
-    suspend fun getUserByUsername(username: String): User?
-
-    @Query("SELECT * FROM users WHERE email = :email LIMIT 1") // Check if email exists
+    @Query("SELECT * FROM users WHERE email = :email LIMIT 1")
     suspend fun getUserByEmail(email: String): User?
 
+    // Optional: Add query to find user by Firebase UID
+    @Query("SELECT * FROM users WHERE firebaseUid = :firebaseUid LIMIT 1")
+    suspend fun getUserByFirebaseUid(firebaseUid: String): User?
+
+    @Query("SELECT * FROM users WHERE id = :id LIMIT 1")
+    suspend fun getUserById(id: Int): User?
+
+    // Add other queries as needed (update, delete, etc.)
 }
