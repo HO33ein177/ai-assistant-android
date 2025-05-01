@@ -65,7 +65,7 @@ fun OnboardingScreen(navController: NavController) {
                 // imageVector = Icons.Filled.Chat, // Placeholder
 
                 // NEW - Add this line instead:
-                painter = painterResource(id = R.drawable.onboarding_illustration), // Use your actual filename here!
+                painter = painterResource(id = R.drawable.logo), // Use your actual filename here!
 
                 contentDescription = "Onboarding Illustration", // Keep or update this description
                 modifier = Modifier

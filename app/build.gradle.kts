@@ -11,6 +11,7 @@ plugins {
     id("com.google.android.libraries.mapsplatform.secrets-gradle-plugin")
     id("com.google.devtools.ksp")
     id("com.google.dagger.hilt.android")
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -95,6 +96,14 @@ dependencies {
     ksp(libs.androidx.room.compiler)
 
     implementation(libs.androidx.ui)
+//    implementation(platform(libs.firebase.bom))
+//    implementation(libs.firebase.auth.ktx)
+//    implementation(libs.firebase.core.ktx)
+//    implementation(libs.firebase.core)
+    implementation(platform("com.google.firebase:firebase-bom:33.1.1"))
+
+    // Firebase Authentication (version managed by BOM)
+    implementation("com.google.firebase:firebase-auth-ktx")
 
 
 }

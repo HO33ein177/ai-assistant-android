@@ -287,7 +287,7 @@ class ChatViewModel @Inject constructor(
     }
 
 
-    open fun stopRecordingAudioAndSend(prompt: String = "Describe this audio") {
+    open fun stopRecordingAudioAndSend(prompt: String = "Describe this audio") { // Keep prompt argument for potential future use or logging
         val userId = currentUserId ?: return run { Log.e(TAG, "[stopRecording] Failed: currentUserId is null") }
         val conversationId = currentConversationId ?: return run { Log.e(TAG, "[stopRecording] Failed: currentConversationId is null") }
         val model = generativeModel ?: return run {
@@ -295,81 +295,110 @@ class ChatViewModel @Inject constructor(
             handleError("AI Model not ready.", null)
         }
         if (!_isRecording.value) return run { Log.w(TAG, "[stopRecording] Ignored: not recording") }
-        // ... rest of stopRecordingAudioAndSend ...
-        // Ensure 'userId' is used when creating audioDbMessage and aiTextDbMessage
+
+        // Log the original prompt if needed, but don't use it directly for the message text
+        Log.d(TAG, "[stopRecording] Stopping recording and processing. Original UI prompt/text was: '$prompt'")
         viewModelScope.launch {
-            Log.d(TAG, "[stopRecording] Setting isRecording = false, isLoading = true")
             _isRecording.value = false
             _isLoading.value = true
 
             val tempAudioFilePath = audioRecorder.stopRecording()
 
             if (tempAudioFilePath != null) {
-                Log.i(TAG, "[stopRecording] Recording stopped. Temp file: $tempAudioFilePath.")
                 val tempAudioFile = File(tempAudioFilePath)
                 var persistentAudioFilePath: String? = null
 
                 if (tempAudioFile.exists() && tempAudioFile.length() > 0) {
-                    Log.d(TAG, "[stopRecording] Temp file exists and is not empty. Copying...")
                     persistentAudioFilePath = copyAudioToInternalStorage(tempAudioFile)
 
                     if (persistentAudioFilePath != null) {
-                        Log.d(TAG, "[stopRecording] Audio copied to persistent storage: $persistentAudioFilePath")
-                        val audioChatMessage = ChatMessage(text = prompt, isFromUser = true, messageType = MessageType.AUDIO, audioFilePath = persistentAudioFilePath)
-                        _chatHistory.update { it + audioChatMessage }
-                        Log.d(TAG, "[stopRecording] Added audio message to UI.")
+                        // <<< --- CHANGE HERE --- >>>
+                        // Use a generic placeholder for the voice message text
+                        val voiceMessagePlaceholderText = "[Voice Message]"
 
-                        val audioDbMessage = Message(userId = userId, conversationId = conversationId, sender = SENDER_USER, content = prompt, timestamp = System.currentTimeMillis(), audioPath = persistentAudioFilePath) // Ensure userId used correctly here
-                        Log.d(TAG, "[stopRecording] Saving audio message placeholder to DB...")
+                        // Add AUDIO message to UI with the placeholder text
+                        val audioChatMessage = ChatMessage(
+                            text = voiceMessagePlaceholderText, // Use placeholder
+                            isFromUser = true,
+                            messageType = MessageType.AUDIO,
+                            audioFilePath = persistentAudioFilePath
+                        )
+                        _chatHistory.update { it + audioChatMessage }
+                        Log.d("ChatViewModel", "Added audio message placeholder to UI.")
+
+                        // Save AUDIO message placeholder to DB with the placeholder text
+                        val audioDbMessage = Message(
+                            userId = userId,
+                            conversationId = conversationId,
+                            sender = SENDER_USER,
+                            content = voiceMessagePlaceholderText, // Use placeholder
+                            timestamp = System.currentTimeMillis(),
+                            audioPath = persistentAudioFilePath
+                        )
+                        // <<< --- END CHANGE --- >>>
+
+                        // ... (save audioDbMessage to DB) ...
                         withContext(Dispatchers.IO) { try { messageDao.insert(audioDbMessage); Log.d(TAG, "[stopRecording] Audio placeholder saved.") } catch (e: Exception) { Log.e(TAG, "[stopRecording] Failed to save audio placeholder", e) } }
 
-                        Log.d(TAG, "[stopRecording] Sending audio to Gemini API...")
+                        // --- Send ONLY audio to API (Keep this part as is) ---
                         try {
                             val audioBytes = tempAudioFile.readBytes()
-                            val inputContent = content { text(prompt); part(BlobPart(mimeType = "audio/m4a", blob = audioBytes)) }
+                            val inputContent = content {
+                                part(BlobPart(mimeType = "audio/m4a", blob = audioBytes))
+                            }
+                            Log.d("ChatViewModel", "Sending ONLY audio content to Gemini...")
 
                             val response = model.generateContent(inputContent)
+                            Log.d("ChatViewModel", "Received response from Gemini.")
                             val responseText = response.text ?: "Sorry, I couldn't process the audio."
-                            Log.d(TAG, "[stopRecording] Received Gemini response: '$responseText'")
 
-                            val aiTextChatMessage = ChatMessage(text = responseText, isFromUser = false, messageType = MessageType.TEXT)
+                            // ... (Add AI response (TEXT) to UI and DB - remains the same) ...
+                            val aiTextChatMessage = ChatMessage(
+                                text = responseText,
+                                isFromUser = false,
+                                messageType = MessageType.TEXT
+                            )
                             _chatHistory.update { it + aiTextChatMessage }
-                            Log.d(TAG, "[stopRecording] Updated UI with AI response.")
-
-                            val aiTextDbMessage = Message(userId = userId, conversationId = conversationId, sender = SENDER_AI, content = responseText, timestamp = System.currentTimeMillis()) // Ensure userId used correctly here
-                            Log.d(TAG, "[stopRecording] Saving AI response to DB...")
+                            val aiTextDbMessage = Message(
+                                userId = userId,
+                                conversationId = conversationId,
+                                sender = SENDER_AI,
+                                content = responseText,
+                                timestamp = System.currentTimeMillis()
+                            )
                             withContext(Dispatchers.IO) { try { messageDao.insert(aiTextDbMessage); Log.d(TAG, "[stopRecording] AI response saved.") } catch (e: Exception) { Log.e(TAG, "[stopRecording] Failed to save AI response", e) } }
+
+
                         } catch (e: IOException) {
-                            Log.e(TAG, "[stopRecording] Error reading audio file bytes", e)
                             handleError("Error reading audio file bytes: ${e.localizedMessage}", e)
+                            Log.e(TAG, "[stopRecording] Error reading audio file bytes", e)
                         } catch (e: Exception) {
                             Log.e(TAG, "[stopRecording] API Error (Audio)", e)
                             handleError("API Error (Audio): ${e.localizedMessage}", e)
                         } finally {
-                            Log.d(TAG, "[stopRecording] Deleting temporary audio file: $tempAudioFilePath")
+                            // ... (Clean up temporary audio file) ...
                             try {
                                 if (tempAudioFile.delete()) { Log.d(TAG, "[stopRecording] Temp file deleted.") }
                                 else { Log.w(TAG, "[stopRecording] Failed to delete temp file.") }
                             } catch (e: Exception) { Log.e(TAG, "[stopRecording] Error deleting temp file", e) }
                         }
-                    } else {
-                        Log.e(TAG, "[stopRecording] Failed to copy audio to persistent storage.")
+                    } else { // Copying failed
                         handleError("Error: Failed to copy audio to persistent storage.", null)
+                        Log.e(TAG, "[stopRecording] Failed to copy audio to persistent storage.")
                         tempAudioFile.delete()
                     }
-                } else {
-                    Log.e(TAG, "[stopRecording] Recorded audio file is missing or empty: $tempAudioFilePath")
+                } else { // Temp file missing/empty
                     handleError("Error: Recorded audio file is missing or empty.", null)
+                    Log.e(TAG, "[stopRecording] Recorded audio file is missing or empty: $tempAudioFilePath")
                     if (tempAudioFile.exists()) tempAudioFile.delete()
                 }
-            } else {
-                Log.e(TAG, "[stopRecording] Failed to stop recording or get file path.")
+            } else { // stopRecording failed
                 handleError("Error: Failed to stop recording or get file path.", null)
+                Log.e(TAG, "[stopRecording] Failed to stop recording or get file path.")
             }
 
-            Log.d(TAG, "[stopRecording] Setting isLoading = false (end of function)")
             _isLoading.value = false
-        }
+        } // End viewModelScope.launch
     }
 
     // --- copyAudioToInternalStorage, handleError, onCleared remain the same ---

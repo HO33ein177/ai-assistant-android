@@ -134,13 +134,13 @@ fun SignupScreen(
                 // Call ViewModel update function
                 onValueChange = viewModel::onUsernameChange,
                 placeholder = { Text("نام کاربری", fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) }, // "Username"
-                leadingIcon = {
-                    Icon(
-                        painter = painterResource(id = R.drawable.profile_picture), // ASSUMES profile_icon exists
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                },
+//                leadingIcon = {
+//                    Icon(
+//                        painter = painterResource(id = R.drawable.profile_picture), // ASSUMES profile_icon exists
+//                        contentDescription = null,
+//                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+//                    )
+//                },
                 colors = signupTextFieldColors(),
                 shape = RoundedCornerShape(12.dp),
                 singleLine = true,
