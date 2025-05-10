@@ -2,7 +2,7 @@
 # --- CORE UPDATES for Kotlin 2.0 ---
 firebaseBom = "33.13.0"
 kotlin = "2.0.0"
-agp = "8.4.1" # Using AGP 8.4.1 (stable, compatible with newer Gradle/Kotlin)
+agp = "8.6.0" # Using AGP 8.4.1 (stable, compatible with newer Gradle/Kotlin)
 hiltAndroid = "2.56.1"
 hiltAndroidCompiler = "2.56.1"
 composeBom = "2024.05.00" # BOM compatible with Kotlin 2.0
@@ -29,7 +29,8 @@ composeQrCodeVersion = "1.0.1"
 devComposeQrCode = "1.3.1"
 lightsparkComposeQrCode = "1.0.1"
 #material3 = "1.3.1" # Removed - Let BOM handle this
-common = "0.10.0" # Check if 'common' is the correct artifact name/version for generativeai
+common = "0.10.0"
+navigationRuntimeAndroid = "2.9.0" # Check if 'common' is the correct artifact name/version for generativeai
 
 [libraries]
 accompanist-permissions = { module = "com.google.accompanist:accompanist-permissions", version.ref = "accompanistPermissions" }
@@ -68,7 +69,8 @@ androidx-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-man
 androidx-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" } # Managed by BOM
 androidx-material3 = { group = "androidx.compose.material3", name = "material3" } # Managed by BOM
 # material3 = { module = "androidx.compose.material3:material3", version.ref = "material3" } # Removed redundant alias
-common = { group = "com.google.ai.client.generativeai", name = "common", version.ref = "common" } # Review if needed/correct
+common = { group = "com.google.ai.client.generativeai", name = "common", version.ref = "common" }
+androidx-navigation-runtime-android = { group = "androidx.navigation", name = "navigation-runtime-android", version.ref = "navigationRuntimeAndroid" } # Review if needed/correct
 
 
 [plugins]

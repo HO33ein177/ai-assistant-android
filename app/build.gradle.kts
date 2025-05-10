@@ -74,6 +74,7 @@ dependencies {
     implementation(libs.compose.qr.code)
     implementation (libs.accompanist.permissions)
     implementation(libs.common)
+    implementation(libs.androidx.navigation.runtime.android)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

@@ -12,49 +12,46 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-@HiltViewModel // <-- Add this annotation
-class ConversationListViewModel @Inject constructor( // <-- Add @Inject here
-    private val messageDao: MessageDao // Dependency is already a constructor param
+@HiltViewModel
+class ConversationListViewModel @Inject constructor(
+    private val messageDao: MessageDao
 ) : ViewModel() {
 
-    private val _conversationIds = MutableStateFlow<List<String>>(emptyList())
-    val conversationIds: StateFlow<List<String>> = _conversationIds.asStateFlow()
+    // Changed to hold ConversationSummary objects
+    private val _conversationSummaries = MutableStateFlow<List<ConversationSummary>>(emptyList())
+    val conversationSummaries: StateFlow<List<ConversationSummary>> = _conversationSummaries.asStateFlow()
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
     private var currentUserId: Int? = null
 
-    fun loadConversations(userId: Int) {
-        // Avoid reloading if already loaded for the same user
-        if (userId == currentUserId && _conversationIds.value.isNotEmpty() && !_isLoading.value) {
-            Log.d("ConvListViewModel", "Conversations already loaded for user $userId")
+    // Fetches summaries of conversations (ID, first message, last message timestamp)
+    fun loadConversationSummaries(userId: Int) {
+        if (userId == currentUserId && _conversationSummaries.value.isNotEmpty() && !_isLoading.value) {
+            Log.d("ConvListViewModel", "Summaries already loaded for user $userId")
             return
         }
-        // Prevent multiple concurrent loads for the same user
         if (userId == currentUserId && _isLoading.value) {
-            Log.d("ConvListViewModel", "Conversations already loading for user $userId")
+            Log.d("ConvListViewModel", "Summaries already loading for user $userId")
             return
         }
 
-        Log.d("ConvListViewModel", "Loading conversations for user $userId")
+        Log.d("ConvListViewModel", "Loading conversation summaries for user $userId")
         currentUserId = userId
         _isLoading.value = true
-        // Clear previous results when loading for a new user or reloading
-        _conversationIds.value = emptyList()
-
+        _conversationSummaries.value = emptyList()
 
         viewModelScope.launch {
-            messageDao.getAllConversationIds(userId)
+            messageDao.getConversationSummaries(userId) // Call the new DAO method
                 .catch { e ->
-                    Log.e("ConvListViewModel", "Error loading conversation IDs for user $userId", e)
-                    // Optionally expose an error state to the UI
-                    _isLoading.value = false // Ensure loading stops on error
-                }
-                .collect { ids ->
-                    _conversationIds.value = ids
+                    Log.e("ConvListViewModel", "Error loading conversation summaries for user $userId", e)
                     _isLoading.value = false
-                    Log.d("ConvListViewModel", "Loaded ${ids.size} conversation IDs for user $userId")
+                }
+                .collect { summaries ->
+                    _conversationSummaries.value = summaries.sortedByDescending { it.lastMessageTimestamp } // Sort by most recent
+                    _isLoading.value = false
+                    Log.d("ConvListViewModel", "Loaded ${summaries.size} conversation summaries for user $userId")
                 }
         }
     }

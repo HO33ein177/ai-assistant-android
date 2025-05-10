@@ -1,7 +1,6 @@
 package com.example.bio.presentation.common.component.chat
 
 import android.Manifest
-import android.app.Application
 import android.text.BidiFormatter
 import android.text.TextDirectionHeuristics
 import android.util.Log
@@ -27,6 +26,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
@@ -37,6 +37,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Send
@@ -45,9 +48,12 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -55,6 +61,7 @@ import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -70,7 +77,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -78,41 +84,49 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavController
+import com.example.bio.AppDestinations
 import com.example.bio.R
-import com.example.bio.presentation.common.component.theme.vazirmatn
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 import com.google.accompanist.permissions.shouldShowRationale
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
+import java.util.UUID
 
 
-// --- Define a data class for your history items ---
-data class HistoryItem(
-    val id: Int, // A unique identifier for each history item
-    val text: String,
-    val dateGroup: String // e.g., "امروز", "دیروز", "7 روز پیش"
-    // Add other relevant data like conversation ID if needed
-)
+// Data class for representing a conversation summary in the history list
+// (Ensure this is defined, e.g., in presentation.common.component.chat or data.model)
+ data class ConversationSummary(
+    val conversationId: String,
+    val lastMessageTimestamp: Long,
+    val firstMessageContent: String?
+ )
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
 fun ChatScreen(
-    // Add parameters to receive userId and conversationId
+    navController: NavController,
     userId: Int,
     conversationId: String
 ) {
     val context = LocalContext.current
-    val application = context.applicationContext as Application
-
     val chatViewModel: ChatViewModel = hiltViewModel()
+    val conversationListViewModel: ConversationListViewModel = hiltViewModel()
 
     val chatHistory by chatViewModel.chatHistory.collectAsStateWithLifecycle()
     val isLoading by chatViewModel.isLoading.collectAsStateWithLifecycle()
     val isRecording by chatViewModel.isRecording.collectAsStateWithLifecycle()
+
+    val conversationSummaries by conversationListViewModel.conversationSummaries.collectAsStateWithLifecycle()
+    val isHistoryLoading by conversationListViewModel.isLoading.collectAsStateWithLifecycle()
+
 
     var userInput by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
@@ -123,47 +137,54 @@ fun ChatScreen(
         Manifest.permission.RECORD_AUDIO
     )
     var showRationaleDialog by remember { mutableStateOf(false) }
-
-    // --- State to control History_page visibility ---
     var isHistoryPageOpen by remember { mutableStateOf(false) }
 
-    // --- Load Data using LaunchedEffect ---
     LaunchedEffect(userId, conversationId) {
-        Log.d("ChatScreen", "LaunchedEffect running: Loading data for User $userId, Conversation $conversationId")
+        Log.d("ChatScreen", "LaunchedEffect: Loading data for User $userId, Current Conversation $conversationId")
         chatViewModel.loadDataForConversation(userId, conversationId)
     }
-    // --- End Load Data ---
 
-    // Effect to scroll down (remains the same)
+    LaunchedEffect(userId, isHistoryPageOpen) {
+        if (isHistoryPageOpen) {
+            Log.d("ChatScreen", "LaunchedEffect: History page opened. Loading conversations for User $userId")
+            conversationListViewModel.loadConversationSummaries(userId)
+        }
+    }
+
     LaunchedEffect(chatHistory.size) {
         if (chatHistory.isNotEmpty()) {
             coroutineScope.launch {
-                // A small delay can sometimes help ensure the item is rendered before scrolling
-                // kotlinx.coroutines.delay(100)
                 listState.animateScrollToItem(chatHistory.size - 1)
             }
         }
     }
 
-    // Use Box to layer the main content and the History_page (as a drawer)
     Box(modifier = Modifier.fillMaxSize()) {
-        // --- Main Chat Content (Scaffold) ---
-        // This content is always present, History_page will overlay it
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { Text("Chat") }, // Example Title
+                    title = {
+                        Text(
+                            "Chat: ...${conversationId.takeLast(6)}",
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    },
                     actions = {
-                        // History Icon button - toggles History_page visibility
                         IconButton(onClick = {
-                            isHistoryPageOpen = true // Open the History_page
+                            isHistoryPageOpen = true
                         }) {
                             Icon(
                                 imageVector = Icons.Filled.History,
                                 contentDescription = "History"
                             )
                         }
-                    }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        actionIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
                 )
             },
             bottomBar = {
@@ -263,22 +284,38 @@ fun ChatScreen(
             }
         }
 
-        // --- History Page (as a Drawer) ---
-        // Pass the state and a close callback to History_page
-        History_page(
+        HistoryPage(
             visible = isHistoryPageOpen,
             onClose = { isHistoryPageOpen = false },
-            // You might pass a callback here to handle loading the selected chat
-            onHistoryItemSelected = { selectedItem ->
-                Log.d("ChatScreen", "History item selected: ${selectedItem.text}")
-                // TODO: Implement logic to load the chat for selectedItem.id
-                // You may want to close the drawer automatically after selection
+            conversationSummaries = conversationSummaries,
+            isLoading = isHistoryLoading,
+            onHistoryItemSelected = { selectedConvId ->
+                Log.d("ChatScreen", "History item selected: $selectedConvId")
+                if (selectedConvId != conversationId) {
+                    navController.navigate(AppDestinations.createChatRoute(userId, selectedConvId)) {
+                        // Pop up to the login route to clear the current chat from the back stack
+                        // when navigating to a different existing chat.
+                        // This makes the back button from the newly opened chat go to Login (or whatever is before it).
+                        popUpTo(AppDestinations.LOGIN_ROUTE) { inclusive = false }
+                    }
+                }
                 isHistoryPageOpen = false
-            }
+            },
+            onNewChatClicked = { newConvId -> // Handle new chat click
+                Log.d("ChatScreen", "New chat clicked. Navigating to new conversation: $newConvId")
+                navController.navigate(AppDestinations.createChatRoute(userId, newConvId)) {
+                    // Similar to selecting an existing chat, clear the current one if it's different
+                    // or adjust based on desired backstack behavior for new chats.
+                    // If the current screen IS the chat screen, popping up to LOGIN_ROUTE
+                    // before navigating to a new chat instance will effectively replace it.
+                    popUpTo(AppDestinations.LOGIN_ROUTE) { inclusive = false }
+                }
+                isHistoryPageOpen = false
+            },
+            currentUserId = userId
         )
     }
 
-    // --- Rationale Dialog (remains the same) ---
     if (showRationaleDialog) {
         AlertDialog(
             onDismissRequest = { showRationaleDialog = false },
@@ -297,7 +334,6 @@ fun ChatScreen(
     }
 }
 
-// --- ChatInputArea composable definition remains the same ---
 @Composable
 fun ChatInputArea(
     userInput: String,
@@ -313,7 +349,7 @@ fun ChatInputArea(
 
     LaunchedEffect(isMicPressed) {
         if (isMicPressed) {
-            onRecordStart()
+            if (!isRecording && !isLoading) onRecordStart()
         } else {
             if (isRecording) {
                 onRecordStop()
@@ -321,7 +357,10 @@ fun ChatInputArea(
         }
     }
 
-    Surface(shadowElevation = 8.dp) {
+    Surface(
+        shadowElevation = 8.dp,
+        color = MaterialTheme.colorScheme.surfaceVariant
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -334,9 +373,10 @@ fun ChatInputArea(
                 modifier = Modifier.weight(1f),
                 placeholder = { Text("Type or hold mic...") },
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                keyboardActions = KeyboardActions(onSend = { if (!isRecording) onSendMessage() }),
-                enabled = !isRecording,
-                maxLines = 3
+                keyboardActions = KeyboardActions(onSend = { if (!isRecording && userInput.isNotBlank()) onSendMessage() }),
+                enabled = !isRecording && !isLoading,
+                maxLines = 3,
+                shape = RoundedCornerShape(24.dp)
             )
             Spacer(modifier = Modifier.width(8.dp))
 
@@ -346,8 +386,9 @@ fun ChatInputArea(
                 modifier = Modifier
                     .size(50.dp)
                     .background(
-                        if (isRecording) Color.Red.copy(alpha = 0.8f) else MaterialTheme.colorScheme.secondaryContainer,
-                        shape = RoundedCornerShape(50)
+                        if (isRecording) Color.Red.copy(alpha = 0.8f)
+                        else MaterialTheme.colorScheme.secondaryContainer,
+                        shape = CircleShape
                     ),
                 enabled = !isLoading
             ) {
@@ -364,8 +405,8 @@ fun ChatInputArea(
             IconButton(
                 onClick = onSendMessage,
                 enabled = userInput.isNotBlank() && !isLoading && !isRecording,
+                modifier = Modifier.size(50.dp).background(MaterialTheme.colorScheme.primary, CircleShape),
                 colors = IconButtonDefaults.iconButtonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary,
                     disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
                     disabledContentColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.5f)
@@ -377,7 +418,6 @@ fun ChatInputArea(
     }
 }
 
-// --- InitialPrompts Composable definition remains the same ---
 @Composable
 fun InitialPrompts(onPromptClick: (String) -> Unit) {
     val prompts = listOf(
@@ -385,32 +425,35 @@ fun InitialPrompts(onPromptClick: (String) -> Unit) {
         "Explain black holes simply",
         "Write a tweet about global warming",
         "Write a poem about love and roses",
-        "How do you say 'How are you?' in German?",
-        "Translate this text: ..."
     )
-    LazyColumn(
+    Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        item {
-            Text("Try asking:", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(bottom = 16.dp), textAlign = TextAlign.Center)
-        }
-        items(prompts) { prompt ->
+        Text(
+            "Try asking:",
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(bottom = 16.dp),
+            textAlign = TextAlign.Center
+        )
+        prompts.forEach { prompt ->
             SuggestionChip(
                 onClick = { onPromptClick(prompt) },
                 label = { Text(prompt, textAlign = TextAlign.Center) },
                 modifier = Modifier.padding(vertical = 4.dp).fillMaxWidth(0.9f)
             )
         }
-        item { Spacer(modifier = Modifier.height(20.dp)) }
-        item {
-            Text("...or hold the Mic button to speak!", style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
-        }
+        Spacer(modifier = Modifier.height(20.dp))
+        Text(
+            "...or hold the Mic button to speak!",
+            style = MaterialTheme.typography.bodyMedium,
+            textAlign = TextAlign.Center
+        )
     }
 }
 
-// --- ChatBubble Composable definition remains the same ---
+
 @Composable
 fun ChatBubble(message: ChatMessage) {
     val bubbleColor = if (message.isFromUser) MaterialTheme.colorScheme.primaryContainer
@@ -422,205 +465,218 @@ fun ChatBubble(message: ChatMessage) {
     else MaterialTheme.colorScheme.onSecondaryContainer
 
     val alignment = if (message.isFromUser) Alignment.CenterEnd else Alignment.CenterStart
+    val isRtl = message.text.any { it in '\u0600'..'\u06FF' }
+    val textAlignment = if (isRtl) TextAlign.Right else TextAlign.Left
+    val layoutDirection = if (isRtl) LayoutDirection.Rtl else LayoutDirection.Ltr
 
-    Box(
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = bubbleColor,
-            modifier = Modifier
-                .align(alignment)
-                .padding(
-                    start = if (message.isFromUser) 40.dp else 0.dp,
-                    end = if (message.isFromUser) 0.dp else 40.dp
-                )
-                .wrapContentWidth()
+
+    CompositionLocalProvider(LocalLayoutDirection provides layoutDirection) {
+        Box(
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Text(
-                text = message.text,
-                color = textColor,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
-            )
+            Surface(
+                shape = RoundedCornerShape(
+                    topStart = if (message.isFromUser) 16.dp else 4.dp,
+                    topEnd = if (message.isFromUser) 4.dp else 16.dp,
+                    bottomStart = 16.dp,
+                    bottomEnd = 16.dp
+                ),
+                color = bubbleColor,
+                modifier = Modifier
+                    .align(alignment)
+                    .padding(
+                        start = if (message.isFromUser) 40.dp else 0.dp,
+                        end = if (message.isFromUser) 0.dp else 40.dp
+                    )
+                    .wrapContentWidth()
+                    .widthIn(min = 60.dp)
+            ) {
+                Text(
+                    text = message.text,
+                    color = textColor,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                    textAlign = textAlignment
+                )
+            }
         }
     }
 }
 
 
-// --- Modified History_page Composable ---
-// It now takes 'visible' and 'onClose' parameters, and manages selected item state
 @Composable
-fun History_page(
-    visible: Boolean, // State from parent to control visibility
-    onClose: () -> Unit, // Callback to notify parent to close the drawer
-    onHistoryItemSelected: (HistoryItem) -> Unit // Callback to notify parent when a history item is selected
+fun HistoryPage(
+    visible: Boolean,
+    onClose: () -> Unit,
+    conversationSummaries: List<ConversationSummary>,
+    isLoading: Boolean,
+    onHistoryItemSelected: (String) -> Unit,
+    onNewChatClicked: (String) -> Unit, // New callback for starting a new chat
+    currentUserId: Int
 ) {
-    // State to keep track of the currently selected history item's ID
-    var selectedHistoryItemId by remember { mutableStateOf<Int?>(null) }
+    var selectedConversationId by remember { mutableStateOf<String?>(null) }
 
-    // --- Sample History Data (Replace with your actual data source) ---
-    // This structure groups items by date
-    val historyItemsGrouped = remember {
-        listOf(
-            "امروز" to listOf(
-                HistoryItem(1, "فیگما چیست؟", "امروز"),
-                HistoryItem(2, "چرا یادگیری اندروید استودیو سخت است", "امروز"),
-                HistoryItem(3, "طراحی ui", "امروز")
-            ),
-            "دیروز" to listOf(
-                HistoryItem(4, "فرمول ساخت اتم", "دیروز"),
-                HistoryItem(5, "تمرین QR code", "دیروز")
-            ),
-            "7 روز پیش" to listOf(
-                HistoryItem(6, "کد python", "7 روز پیش"),
-                HistoryItem(7, "دانشگاه اصفهان", "7 روز پیش"),
-                HistoryItem(8, "خرابی سیستم", "7 روز پیش"),
-                HistoryItem(9, "یادگیری کاتلین", "7 روز پیش"),
-                HistoryItem(10, "ایجاد تب جدید در برنامه اندروید استودیو", "7 روز پیش")
-            )
-        )
+    fun formatTimestamp(timestamp: Long): String {
+        val sdf = SimpleDateFormat("MMM dd, HH:mm", Locale.getDefault())
+        sdf.timeZone = TimeZone.getDefault()
+        return sdf.format(Date(timestamp))
     }
 
-
-    // The Box containing the overlay and the animated drawer content
-    // This Box will cover the whole screen when visible
-    Box(modifier = Modifier.fillMaxSize()) {
-
-        // Semi-transparent background overlay - Visible only when the drawer is open
+    Box(modifier = Modifier.fillMaxSize()) { // Main container for the drawer and overlay
         if (visible) {
-            Box(
+            Box( // Overlay
                 Modifier
                     .fillMaxSize()
                     .background(Color.Black.copy(alpha = 0.5f))
-                    .clickable { onClose() } // Close drawer when clicking outside
+                    .clickable { onClose() }
             )
         }
 
-        // Animated Drawer Content - Slides in/out based on the 'visible' state
         AnimatedVisibility(
-            visible = visible, // Use the state passed from the parent
-            enter = slideInHorizontally(
-                initialOffsetX = { -it }, // Slide from the left
-                animationSpec = tween(300)
-            ),
-            exit = slideOutHorizontally(
-                targetOffsetX = { -it }, // Slide out to the left
-                animationSpec = tween(300)
-            )
+            visible = visible,
+            enter = slideInHorizontally(initialOffsetX = { -it }, animationSpec = tween(300)),
+            exit = slideOutHorizontally(targetOffsetX = { -it }, animationSpec = tween(300))
         ) {
-            // The actual content of the sidebar (drawer)
-            Box(
+            // Drawer content using Scaffold to easily place FAB
+            Scaffold(
                 modifier = Modifier
                     .fillMaxHeight()
-                    .fillMaxWidth(0.7f) // Sidebar width is 70% of screen width
-                    .background(MaterialTheme.colorScheme.surface) // Use theme surface color
-                    .clip(RoundedCornerShape(topEnd = 16.dp, bottomEnd = 16.dp)) // Add rounded corners on the visible side
-                    .padding(16.dp)
-                    .clickable(enabled = false) { } // Prevent clicks on the drawer content from closing the drawer via overlay
-            ) {
+                    .fillMaxWidth(0.85f)
+                    .clip(RoundedCornerShape(topEnd = 24.dp, bottomEnd = 24.dp))
+                    .background(MaterialTheme.colorScheme.surface) // Explicit background for Scaffold
+                    .clickable(enabled = false) { }, // Consume clicks on the drawer itself
+                floatingActionButton = {
+                    FloatingActionButton(
+                        onClick = {
+                            val newConversationId = UUID.randomUUID().toString()
+                            onNewChatClicked(newConversationId) // Call the new callback
+                        },
+                        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                        modifier = Modifier.padding(bottom = 60.dp) // Ensure it's above the profile info if screen is short
+                    ) {
+                        Icon(Icons.Filled.Add, "Start New Chat")
+                    }
+                }
+            ) { scaffoldPadding -> // Content of the drawer
                 Column(
-                    modifier = Modifier.fillMaxSize()
-                        .padding(top = 16.dp) // Adjusted top padding
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(scaffoldPadding) // Apply padding from Scaffold
+                        .padding(top = 8.dp, start = 8.dp, end = 8.dp) // Additional internal padding
                 ) {
-                    // Header Row (Close Button, Icon, Title)
                     Row(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(bottom = 8.dp)
+                            .padding(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 4.dp)
                     ) {
-                        // Close Button
-                        IconButton(onClick = { onClose() }) // Call the onClose callback
-                        {
+                        IconButton(onClick = { onClose() }) {
                             Icon(
-                                painter = painterResource(id = R.drawable.arrow_left),
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = "Close History",
-                                tint = colorResource(id = R.color.black),
-                                modifier = Modifier.size(30.dp)
+                                tint = MaterialTheme.colorScheme.onSurface
                             )
                         }
-
-                        // Robot Icon
+                        Text(
+                            text = "Chat History",
+                            style = MaterialTheme.typography.titleLarge,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.weight(1f).padding(horizontal = 8.dp)
+                        )
                         Image(
                             painter = painterResource(id = R.drawable.robo_icon),
                             contentDescription = "App Icon",
-                            modifier = Modifier.size(45.dp)
-                        )
-
-                        // Title "سوابق"
-                        Text(
-                            text = "سوابق",
-                            color = colorResource(id = R.color.purple_700), // Using purple_700 as in your example
-                            fontSize = 40.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = vazirmatn,
-                            modifier = Modifier.padding(end = 12.dp)
+                            modifier = Modifier.size(36.dp)
                         )
                     }
 
-                    Divider(color = Color.LightGray, thickness = 1.dp, modifier = Modifier.padding(vertical = 8.dp))
+                    Divider(
+                        color = MaterialTheme.colorScheme.outlineVariant,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)
+                    )
 
-                    // --- History Items List ---
-                    // Use LazyColumn to efficiently display the history items
-                    LazyColumn(modifier = Modifier.weight(1f)) {
-                        historyItemsGrouped.forEach { (dateGroup, items) ->
-                            item {
-                                // Display the date group title
-                                History_title_row(dateGroup)
+                    if (isLoading) {
+                        Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator()
+                        }
+                    } else if (conversationSummaries.isEmpty()) {
+                        Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                            Text(
+                                "No chat history yet. Tap '+' to start!",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(16.dp)
+                            )
+                        }
+                    } else {
+                        LazyColumn(modifier = Modifier.weight(1f)) {
+                            val todayStart = getStartOfDayMillis()
+                            val yesterdayStart = todayStart - (24 * 60 * 60 * 1000)
+                            val grouped = conversationSummaries.groupBy { summary ->
+                                when {
+                                    summary.lastMessageTimestamp >= todayStart -> "Today"
+                                    summary.lastMessageTimestamp >= yesterdayStart -> "Yesterday"
+                                    else -> "Older"
+                                }
                             }
-                            items(items, key = { it.id }) { item ->
-                                // Display each history item row
-                                History_row(
-                                    item = item, // Pass the whole item
-                                    isSelected = item.id == selectedHistoryItemId, // Check if this item is selected
-                                    onItemClick = { clickedItem ->
-                                        // Update the selected item ID when a row is clicked
-                                        selectedHistoryItemId = clickedItem.id
-                                        // Notify the parent (ChatScreen) that an item was selected
-                                        onHistoryItemSelected(clickedItem)
-                                        // Optionally close the drawer after selection
-                                        // onClose()
+                            val groupOrder = listOf("Today", "Yesterday", "Older")
+
+                            groupOrder.forEach { dateGroup ->
+                                grouped[dateGroup]?.let { itemsInGroup ->
+                                    if (itemsInGroup.isNotEmpty()) {
+                                        item {
+                                            HistoryTitleRow(text = dateGroup)
+                                        }
+                                        items(itemsInGroup, key = { it.conversationId }) { summary ->
+                                            HistoryRow(
+                                                summary = summary,
+                                                isSelected = summary.conversationId == selectedConversationId,
+                                                onItemClick = {
+                                                    selectedConversationId = it.conversationId
+                                                    onHistoryItemSelected(it.conversationId)
+                                                },
+                                                formatTimestamp = ::formatTimestamp
+                                            )
+                                        }
                                     }
-                                )
+                                }
                             }
                         }
                     }
 
-
-                    Divider(color = Color.LightGray, thickness = 1.dp, modifier = Modifier.padding(vertical = 8.dp))
-
-                    // User Profile Info
+                    // User Profile Info (at the bottom)
+                    // This will be above the FAB due to Scaffold's layout behavior
+                    Divider(
+                        color = MaterialTheme.colorScheme.outlineVariant,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)
+                    )
                     Row(
-                        horizontalArrangement = Arrangement.Start,
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 6.dp)
+                            .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp) // Added bottom padding
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(50.dp)
+                                .size(40.dp)
                                 .clip(CircleShape)
-                                .background(colorResource(id = R.color.main_blue)),
+                                .background(MaterialTheme.colorScheme.secondaryContainer),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "A",
-                                color = Color.White,
-                                fontSize = 24.sp,
+                                text = "U",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
                             )
                         }
-
                         Text(
-                            text = "Ali khorasani2002",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier
-                                .padding(start = 12.dp)
-                                .weight(1f),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            text = "User ID: $currentUserId",
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(start = 12.dp),
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }
@@ -629,64 +685,75 @@ fun History_page(
     }
 }
 
-// --- Modified History_row Composable ---
-// It now receives the item data, its selection state, and a click callback
-@Composable
-fun History_row(
-    item: HistoryItem, // Receive the history item data
-    isSelected: Boolean, // Receive whether this item is currently selected
-    onItemClick: (HistoryItem) -> Unit // Callback to notify parent when clicked
-) {
-    // Removed the internal 'hover' state
+fun getStartOfDayMillis(): Long {
+    val calendar = java.util.Calendar.getInstance()
+    calendar.set(java.util.Calendar.HOUR_OF_DAY, 0)
+    calendar.set(java.util.Calendar.MINUTE, 0)
+    calendar.set(java.util.Calendar.SECOND, 0)
+    calendar.set(java.util.Calendar.MILLISECOND, 0)
+    return calendar.timeInMillis
+}
 
-    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl)
-    {
-        Row(
-            horizontalArrangement = Arrangement.Start,
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 2.dp)
-                .clip(shape = RoundedCornerShape(12.dp))
-                .background(if (isSelected) colorResource(id = R.color.purple_700) else Color.Transparent)
-                .padding(top = 4.dp, bottom = 4.dp, start = 8.dp, end = 8.dp)
-                .clickable {
-                    onItemClick(item)
-                },
-        ) {
+
+@Composable
+fun HistoryRow(
+    summary: ConversationSummary,
+    isSelected: Boolean,
+    onItemClick: (ConversationSummary) -> Unit,
+    formatTimestamp: (Long) -> String
+) {
+    val backgroundColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer
+    else MaterialTheme.colorScheme.surface
+    val contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
+    else MaterialTheme.colorScheme.onSurface
+
+    ListItem(
+        headlineContent = {
             Text(
-                text = item.text,
-                fontSize = 18.sp,
-                fontFamily = vazirmatn,
+                text = summary.firstMessageContent?.take(100) ?: "Chat: ...${summary.conversationId.takeLast(8)}",
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
+                fontWeight = FontWeight.Medium,
+                color = contentColor
             )
-        }
-    }
+        },
+        supportingContent = {
+            Text(
+                text = formatTimestamp(summary.lastMessageTimestamp),
+                style = MaterialTheme.typography.bodySmall,
+                color = if (isSelected) contentColor.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        },
+        leadingContent = {
+            Icon(
+                Icons.Filled.Chat,
+                contentDescription = "Chat Icon",
+                tint = if (isSelected) contentColor else MaterialTheme.colorScheme.secondary
+            )
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable { onItemClick(summary) }
+            .padding(vertical = 4.dp),
+        colors = ListItemDefaults.colors(
+            containerColor = backgroundColor
+        )
+    )
 }
 
 @Composable
-fun History_title_row(text: String) {
-    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl)
-    {
-        val formattedText = remember {
-            BidiFormatter.getInstance().unicodeWrap(text, TextDirectionHeuristics.RTL)
-        }
-        Row(
-            horizontalArrangement = Arrangement.Start,
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 8.dp, end = 12.dp)
-        ) {
-            Text(
-                text = formattedText,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = vazirmatn,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
+fun HistoryTitleRow(text: String) {
+    val formattedText = remember(text) {
+        BidiFormatter.getInstance().unicodeWrap(text, TextDirectionHeuristics.ANYRTL_LTR)
     }
+    Text(
+        text = formattedText,
+        style = MaterialTheme.typography.titleSmall,
+        fontWeight = FontWeight.SemiBold,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 4.dp)
+    )
 }

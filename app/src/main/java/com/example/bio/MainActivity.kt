@@ -170,9 +170,9 @@ fun AppNavigation() {
             if (userId != null && conversationId != null) {
                 ChatScreen(
                     userId = userId,
-                    conversationId = conversationId
+                    conversationId = conversationId,
                     // Pass navController if ChatScreen needs it later:
-                    // navController = navController
+                     navController = navController
                 )
             } else {
                 Log.e(TAG, "Error navigating to ChatScreen: Missing required arguments. userId: $userId, conversationId: $conversationId")
