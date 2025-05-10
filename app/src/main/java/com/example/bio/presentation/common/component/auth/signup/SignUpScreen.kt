@@ -1,12 +1,12 @@
 package com.example.bio.presentation.common.component.auth.signup // Correct package
 
 
+
+import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,52 +14,40 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Email
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.LocalTextStyle
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldColors
-import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.bio.R
-import com.example.bio.presentation.common.component.auth.SignupState
-import com.example.bio.presentation.common.component.auth.UserViewModel
-import com.example.bio.presentation.common.component.theme.BioTheme
-
-
-
-import android.util.Log
-import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Email
-import androidx.compose.material.icons.outlined.Lock
-import androidx.compose.material.icons.outlined.Person // Example for name
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import com.example.bio.data.local.dao.UserDao // Import UserDao
-import com.example.bio.data.local.entity.User // Import User entity
+import com.example.bio.data.local.dao.UserDao
+import com.example.bio.data.local.entity.User
 import com.example.bio.presentation.common.component.reusable.MyBasicTextField
 import com.example.bio.presentation.common.component.reusable.RoundedButton
 import com.google.firebase.auth.FirebaseAuth
@@ -198,7 +186,7 @@ fun SignupScreen(
 
     // --- UI ---
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Create Account") }) }
+        topBar = { TopAppBar(title = { Text("ایجاد حساب کاربری") }) }
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -208,11 +196,38 @@ fun SignupScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
+
+            Row(
+                modifier = Modifier
+                    .padding(16.dp)
+                    .weight(1f), // Keep layout structure
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                // --- Logo and Title ---
+                Text(
+                    modifier = Modifier.padding(top = 16.dp),
+                    text = "Soundwave",
+                    style = LocalTextStyle.current.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 40.sp
+                    ),
+                    // Use a color defined in your resources or theme
+                    color = colorResource(R.color.purple_700) // Example, adjust as needed
+                )
+
+                Image(
+                    painter = painterResource(id = R.drawable.logo), // Your logo
+                    contentDescription = "logo",
+                    modifier = Modifier.size(160.dp)
+                )
+            }
+
             // Add fields for Name, Email, Password, Confirm Password
             MyBasicTextField(
                 value = name,
                 onValueChange = { name = it },
-                label = "Name",
+                label = "نام",
                 trailingIcon = Icons.Outlined.Person,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -221,7 +236,7 @@ fun SignupScreen(
             MyBasicTextField(
                 value = email,
                 onValueChange = { email = it },
-                label = "Email Address",
+                label = "آدرس ایمیل",
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                 trailingIcon = Icons.Outlined.Email,
                 modifier = Modifier.fillMaxWidth()
@@ -231,7 +246,7 @@ fun SignupScreen(
             MyBasicTextField(
                 value = password,
                 onValueChange = { password = it },
-                label = "Password",
+                label = "رمز عبور",
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 visualTransformation = PasswordVisualTransformation(),
                 trailingIcon = Icons.Outlined.Lock,
@@ -242,7 +257,7 @@ fun SignupScreen(
             MyBasicTextField(
                 value = confirmPassword,
                 onValueChange = { confirmPassword = it },
-                label = "Confirm Password",
+                label = "تکرار رمز عبور",
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 visualTransformation = PasswordVisualTransformation(),
                 trailingIcon = Icons.Outlined.Lock,
@@ -254,15 +269,20 @@ fun SignupScreen(
                 CircularProgressIndicator()
             } else {
                 RoundedButton(
-                    text = "Sign Up",
+                    text = "ثبت نام",
                     onClick = { attemptSignup() },
                     modifier = Modifier.fillMaxWidth()
                 )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
-            TextButton(onClick = { navController.popBackStack() }) {
-                Text("Already have an account? Login")
+            TextButton(
+                onClick = { navController.popBackStack() },
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = colorResource(R.color.purple_700) // رنگ متن و ripple
+                )
+            ) {
+                Text("حساب کاربری دارید؟ ورود")
             }
         }
     }

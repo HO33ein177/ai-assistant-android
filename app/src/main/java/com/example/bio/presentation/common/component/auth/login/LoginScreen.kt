@@ -158,7 +158,6 @@ fun LoginScreen(
                     )
 
                     Spacer(Modifier.height(16.dp))
-
                     // --- Email Field ---
                     MyBasicTextField(
                         modifier = Modifier
@@ -200,7 +199,7 @@ fun LoginScreen(
 
                     // --- Login Button ---
                     RoundedButton(
-                        text = if (isLoading) "Logging in..." else "ورود", // "Login"
+                        text = if (isLoading) "در حال ورود..." else "ورود", // "Login"
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp),
@@ -229,7 +228,7 @@ fun LoginScreen(
                                     navController.navigate(AppDestinations.FORGET_PASSWORD_ROUTE)
                                 },
                             text = "رمز عبور را فراموش کرده اید؟", // "Forgot Password?"
-                            color = colorResource(R.color.black), // Use appropriate color
+                            color = colorResource(R.color.purple_700), // Use appropriate color
                             style = LocalTextStyle.current.copy(
                                 fontFamily = FontFamily(Font(R.font.vazirmatn_regular)) // Your font
                             )
@@ -242,7 +241,7 @@ fun LoginScreen(
                                 navController.navigate(AppDestinations.SIGNUP_ROUTE)
                             },
                             text = "ایجاد حساب کاربری", // "Create Account"
-                            color = colorResource(R.color.black), // Use appropriate color
+                            color = colorResource(R.color.purple_700), // Use appropriate color
                             style = LocalTextStyle.current.copy(
                                 fontFamily = FontFamily(Font(R.font.vazirmatn_regular)) // Your font
                             )

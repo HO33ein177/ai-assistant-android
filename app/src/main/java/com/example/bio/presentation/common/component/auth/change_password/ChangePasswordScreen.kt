@@ -1,20 +1,45 @@
 package com.example.bio.presentation.common.component.auth.change_password
 
-import android.widget.Toast // Or use Snackbar for better UI feedback
-import androidx.compose.foundation.layout.*
+import android.widget.Toast
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Email
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.LocalTextStyle
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.colorResource
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.example.bio.presentation.common.component.reusable.MyBasicTextField // Ensure this import is correct
-import com.example.bio.presentation.common.component.reusable.RoundedButton // Ensure this import is correct
+import com.example.bio.R
+import com.example.bio.presentation.common.component.reusable.MyBasicTextField
+import com.example.bio.presentation.common.component.reusable.RoundedButton
 
 // Make sure ResetStatus is accessible (e.g., defined in ViewModel file or its own file)
 // import com.example.bio.presentation.common.component.auth.change_password.ResetStatus // If defined elsewhere
@@ -36,7 +61,7 @@ fun ChangePasswordScreen(
     LaunchedEffect(resetStatus) {
         when (val status = resetStatus) {
             is ResetStatus.Success -> {
-                Toast.makeText(context, "Password reset email sent successfully!", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, "ایمیل بازنشانی رمز عبور با موفقیت ارسال شد!", Toast.LENGTH_LONG).show()
                 // Optional: Automatically navigate back after a short delay or keep the user here
                 // kotlinx.coroutines.delay(2000)
                 // navController.popBackStack()
@@ -52,7 +77,7 @@ fun ChangePasswordScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text("Reset Password") })
+            TopAppBar(title = { Text("بازیابی رمز عبور") })
             // Optional: Add navigation icon to go back
             // navigationIcon = {
             //     IconButton(onClick = { navController.popBackStack() }) {
@@ -61,6 +86,7 @@ fun ChangePasswordScreen(
             // }
         }
     ) { paddingValues ->
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -69,13 +95,37 @@ fun ChangePasswordScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center // Center content vertically
         ) {
+            Row(
+                modifier = Modifier
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                // --- Logo and Title ---
+                Text(
+                    modifier = Modifier.padding(top = 16.dp),
+                    text = "Soundwave",
+                    style = LocalTextStyle.current.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 40.sp
+                    ),
+                    // Use a color defined in your resources or theme
+                    color = colorResource(R.color.purple_500) // Example, adjust as needed
+                )
+
+                Image(
+                    painter = painterResource(id = R.drawable.logo), // Your logo
+                    contentDescription = "logo",
+                    modifier = Modifier.size(160.dp)
+                )
+            }
             Text(
-                text = "Enter your email address",
+                text = "آدرس ایمیل خود را وارد کنید",
                 style = MaterialTheme.typography.headlineSmall,
                 modifier = Modifier.padding(bottom = 8.dp)
             )
             Text(
-                text = "We'll send you an email with instructions to reset your password.",
+                text = "ما ایمیلی حاوی دستورالعمل های بازیابی رمز عبور برای شما ارسال خواهیم کرد.",
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(bottom = 32.dp)
             )
@@ -84,7 +134,7 @@ fun ChangePasswordScreen(
             MyBasicTextField(
                 value = email,
                 onValueChange = viewModel::onEmailChange, // Use correct function reference
-                label = "Email Address",
+                label = "آدرس ایمیل",
                 keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                     keyboardType = KeyboardType.Email
                 ),
@@ -100,7 +150,7 @@ fun ChangePasswordScreen(
                     CircularProgressIndicator()
                 } else {
                     RoundedButton(
-                        text = "Send Reset Email",
+                        text = "ارسال ایمیل بازیابی",
                         onClick = { viewModel.sendPasswordResetEmail() },
                         modifier = Modifier.fillMaxWidth(),
                         enabled = email.isNotBlank() // Enable button only if email has text
@@ -112,8 +162,13 @@ fun ChangePasswordScreen(
 
             // Optional: Button to manually navigate back
             Spacer(modifier = Modifier.height(16.dp))
-            TextButton(onClick = { navController.popBackStack() }) {
-                Text("Back to Login")
+            TextButton(
+                onClick = { navController.popBackStack() },
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = colorResource(R.color.purple_500) // رنگ متن و ripple
+                )
+            ) {
+                Text("بازگشت به ورود")
             }
         }
     }
