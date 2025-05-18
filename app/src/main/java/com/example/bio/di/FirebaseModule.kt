@@ -1,4 +1,4 @@
-package com.example.bio.di // Or your preferred DI package
+package com.example.bio.di
 
 import com.google.firebase.auth.FirebaseAuth
 import dagger.Module
@@ -18,10 +18,4 @@ object FirebaseModule {
         return FirebaseAuth.getInstance()
     }
 
-    // Add providers for other Firebase services here if needed (e.g., Firestore)
-    // @Provides
-    // @Singleton
-    // fun provideFirestore(): FirebaseFirestore {
-    //     return FirebaseFirestore.getInstance()
-    // }
 }

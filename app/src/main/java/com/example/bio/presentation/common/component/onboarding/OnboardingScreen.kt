@@ -36,51 +36,42 @@ fun OnboardingScreen(navController: NavController) {
             .fillMaxSize()
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.SpaceBetween // Pushes button to bottom
+        verticalArrangement = Arrangement.SpaceBetween
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Spacer(modifier = Modifier.height(60.dp)) // Space from top
+            Spacer(modifier = Modifier.height(60.dp))
 
-            // Title (Using English placeholder for Farsi)
             Text(
-                text = "Your Smart Assistant", // Replace with Farsi text if possible
+                text = "دستیار هوشمند شما",
                 style = MaterialTheme.typography.headlineMedium,
-                color = Color(0xFF3F51B5) // Blue color
+                color = Color(0xFF3F51B5)
             )
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Description (Using English placeholder for Farsi)
             Text(
-                text = "Using this app, you can ask your questions via voice and receive text responses.", // Replace with Farsi
+                text = "با استفاده از این برنامه شما \n" +
+                        "می\u200Cتوانید سوالات خود را به صورت صوت یا متن بپرسید " +
+                        "و پاسخ متنی دریافت کنید",
                 style = MaterialTheme.typography.bodyLarge,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Placeholder for the illustration
-            // Replace with your actual illustration
+
             Image(
-                // OLD - Remove or comment out this line:
-                // imageVector = Icons.Filled.Chat, // Placeholder
+                painter = painterResource(id = R.drawable.onboarding_img),
 
-                // NEW - Add this line instead:
-                painter = painterResource(id = R.drawable.logo), // Use your actual filename here!
-
-                contentDescription = "Onboarding Illustration", // Keep or update this description
+                contentDescription = "Onboarding Illustration",
                 modifier = Modifier
-                    .fillMaxWidth(0.8f) // Keep existing modifiers or adjust as needed
-                    .aspectRatio(1f),   // Keep existing modifiers or adjust as needed
-                contentScale = ContentScale.Fit, // ContentScale.Fit is usually good for illustrations
+                    .fillMaxWidth(0.8f)
+                    .aspectRatio(1f),
+                contentScale = ContentScale.Fit,
 
-                // REMOVE or comment out the colorFilter line if you had one,
-                // as tinting a PNG often isn't desired:
-                // colorFilter = ColorFilter.tint(Color(0xFF3F51B5))
             )
         }
 
 
-        // Button at the bottom
         Button(
             onClick = {
                 // Navigate to chat and remove onboarding from back stack
@@ -92,13 +83,12 @@ fun OnboardingScreen(navController: NavController) {
             },
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 32.dp), // Space from bottom edge
+                .padding(bottom = 32.dp),
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3F51B5))
         ) {
-            // Text (Using English placeholder for Farsi "ادامه")
-            Text("Continue", modifier = Modifier.padding(vertical = 8.dp))
+            Text("ادامه", modifier = Modifier.padding(vertical = 8.dp))
             Spacer(modifier = Modifier.width(8.dp))
-            Icon(Icons.Filled.ArrowForward, contentDescription = "Continue")
+            Icon(Icons.Filled.ArrowForward, contentDescription = "ادامه")
         }
     }
 }

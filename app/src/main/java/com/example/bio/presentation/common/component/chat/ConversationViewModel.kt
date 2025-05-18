@@ -17,7 +17,6 @@ class ConversationListViewModel @Inject constructor(
     private val messageDao: MessageDao
 ) : ViewModel() {
 
-    // Changed to hold ConversationSummary objects
     private val _conversationSummaries = MutableStateFlow<List<ConversationSummary>>(emptyList())
     val conversationSummaries: StateFlow<List<ConversationSummary>> = _conversationSummaries.asStateFlow()
 

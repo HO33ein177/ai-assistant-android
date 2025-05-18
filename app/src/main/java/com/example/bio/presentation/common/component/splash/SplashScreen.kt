@@ -33,34 +33,25 @@ fun SplashScreen(navController: NavController) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF3F51B5)), // Blue background similar to mockup
+            .background(Color(0xFF3F51B5)),
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            // Placeholder Icon - Replace with your actual robot logo if you have it
             Image(
-                // OLD - Remove or comment out this line:
-                // imageVector = Icons.Filled.Chat, // Placeholder
-
-                // NEW - Add this line instead:
                 painter = painterResource(id = R.drawable.onboarding_illustration), // Use your actual filename here!
 
-                contentDescription = "Onboarding Illustration", // Keep or update this description
+                contentDescription = "Onboarding Illustration",
                 modifier = Modifier
-                    .fillMaxWidth(0.8f) // Keep existing modifiers or adjust as needed
-                    .aspectRatio(1f),   // Keep existing modifiers or adjust as needed
-                contentScale = ContentScale.Fit, // ContentScale.Fit is usually good for illustrations
+                    .fillMaxWidth(0.8f)
+                    .aspectRatio(1f),
+                contentScale = ContentScale.Fit,
 
-                // REMOVE or comment out the colorFilter line if you had one,
-                // as tinting a PNG often isn't desired:
-                // colorFilter = ColorFilter.tint(Color(0xFF3F51B5))
             )
             Spacer(modifier = Modifier.height(24.dp))
             Text(
                 text = "Soundwave",
                 color = Color.White,
                 fontSize = 32.sp
-                // Add custom font if desired
             )
         }
     }

@@ -4,6 +4,7 @@ import android.Manifest
 import android.text.BidiFormatter
 import android.text.TextDirectionHeuristics
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInHorizontally
@@ -38,6 +39,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.History
@@ -87,8 +89,10 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import com.example.bio.AppDestinations
 import com.example.bio.R
+import com.example.bio.presentation.common.component.auth.UserViewModel
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
@@ -102,7 +106,6 @@ import java.util.UUID
 
 
 // Data class for representing a conversation summary in the history list
-// (Ensure this is defined, e.g., in presentation.common.component.chat or data.model)
  data class ConversationSummary(
     val conversationId: String,
     val lastMessageTimestamp: Long,
@@ -119,6 +122,8 @@ fun ChatScreen(
     val context = LocalContext.current
     val chatViewModel: ChatViewModel = hiltViewModel()
     val conversationListViewModel: ConversationListViewModel = hiltViewModel()
+    val userViewModel: UserViewModel = hiltViewModel() // Inject UserViewModel for logout
+
 
     val chatHistory by chatViewModel.chatHistory.collectAsStateWithLifecycle()
     val isLoading by chatViewModel.isLoading.collectAsStateWithLifecycle()
@@ -143,6 +148,10 @@ fun ChatScreen(
         Log.d("ChatScreen", "LaunchedEffect: Loading data for User $userId, Current Conversation $conversationId")
         chatViewModel.loadDataForConversation(userId, conversationId)
     }
+
+
+    val userInfo by userViewModel.userInfo.collectAsStateWithLifecycle()
+
 
     LaunchedEffect(userId, isHistoryPageOpen) {
         if (isHistoryPageOpen) {
@@ -179,12 +188,31 @@ fun ChatScreen(
                                 contentDescription = "History"
                             )
                         }
+                        // Logout Button
+                        IconButton(onClick = {
+                            userViewModel.signOut() // Perform Firebase sign out
+                            // Navigate to Login screen and clear back stack
+                            navController.navigate(AppDestinations.LOGIN_ROUTE) {
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    inclusive = true // Clears all screens up to and including the start destination of the graph
+                                }
+                                launchSingleTop = true // Avoid multiple copies of Login screen
+                            }
+                            Toast.makeText(context, "Logged out", Toast.LENGTH_SHORT).show()
+                        }) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.Logout,
+                                contentDescription = "Logout"
+                            )
+                        }
                     },
+
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
                         titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                         actionIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer
                     )
+
                 )
             },
             bottomBar = {
@@ -294,8 +322,6 @@ fun ChatScreen(
                 if (selectedConvId != conversationId) {
                     navController.navigate(AppDestinations.createChatRoute(userId, selectedConvId)) {
                         // Pop up to the login route to clear the current chat from the back stack
-                        // when navigating to a different existing chat.
-                        // This makes the back button from the newly opened chat go to Login (or whatever is before it).
                         popUpTo(AppDestinations.LOGIN_ROUTE) { inclusive = false }
                     }
                 }
@@ -304,10 +330,6 @@ fun ChatScreen(
             onNewChatClicked = { newConvId -> // Handle new chat click
                 Log.d("ChatScreen", "New chat clicked. Navigating to new conversation: $newConvId")
                 navController.navigate(AppDestinations.createChatRoute(userId, newConvId)) {
-                    // Similar to selecting an existing chat, clear the current one if it's different
-                    // or adjust based on desired backstack behavior for new chats.
-                    // If the current screen IS the chat screen, popping up to LOGIN_ROUTE
-                    // before navigating to a new chat instance will effectively replace it.
                     popUpTo(AppDestinations.LOGIN_ROUTE) { inclusive = false }
                 }
                 isHistoryPageOpen = false
@@ -536,7 +558,6 @@ fun HistoryPage(
             enter = slideInHorizontally(initialOffsetX = { -it }, animationSpec = tween(300)),
             exit = slideOutHorizontally(targetOffsetX = { -it }, animationSpec = tween(300))
         ) {
-            // Drawer content using Scaffold to easily place FAB
             Scaffold(
                 modifier = Modifier
                     .fillMaxHeight()
@@ -561,7 +582,7 @@ fun HistoryPage(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(scaffoldPadding) // Apply padding from Scaffold
+                        .padding(scaffoldPadding)
                         .padding(top = 8.dp, start = 8.dp, end = 8.dp) // Additional internal padding
                 ) {
                     Row(

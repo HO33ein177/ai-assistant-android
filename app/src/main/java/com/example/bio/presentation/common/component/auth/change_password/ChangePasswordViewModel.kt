@@ -8,9 +8,8 @@ import com.example.bio.data.local.dao.UserDao
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
-//import FirebaseAuth
 
-// Define states for the reset process
+//  states for the reset process
 sealed interface ResetStatus {
     data object Idle : ResetStatus            // Initial state
     data object Loading : ResetStatus         // Email sending in progress
@@ -20,17 +19,12 @@ sealed interface ResetStatus {
 
 @HiltViewModel
 class ChangePasswordViewModel @Inject constructor(
-    private val userDao: UserDao // Keep UserDao if needed for initial email check (optional)
+    private val userDao: UserDao //  UserDao if needed for initial email check
 ) : ViewModel() {
 
     private val _email = mutableStateOf("")
     val email: State<String> = _email
 
-    // Remove states related to code and new password if handled by Firebase externally
-    // private val _code = mutableStateOf("") ...
-    // private val _newPassword = mutableStateOf("") ...
-    // private val _confirmPassword = mutableStateOf("") ...
-    // private val _currentStep = mutableStateOf(ChangePasswordStep.EmailEntry) ...
 
     private val _resetStatus = mutableStateOf<ResetStatus>(ResetStatus.Idle)
     val resetStatus: State<ResetStatus> = _resetStatus
@@ -49,13 +43,6 @@ class ChangePasswordViewModel @Inject constructor(
             _resetStatus.value = ResetStatus.Idle
         }
     }
-
-    // Remove functions related to code/password input and step changes
-    // fun onCodeChange(...) {}
-    // fun onNewPasswordChange(...) {}
-    // fun onConfirmPasswordChange(...) {}
-    // fun verifyCode() {}
-    // fun updatePassword() {}
 
     // --- Password Reset Logic ---
     fun sendPasswordResetEmail() {
@@ -76,7 +63,7 @@ class ChangePasswordViewModel @Inject constructor(
                 } else {
                     val errorMsg = task.exception?.localizedMessage ?: "An unknown error occurred."
                     Log.e("ChangePasswordVM", "Failed to send password reset email: $errorMsg", task.exception)
-                    // Provide a more user-friendly message
+                    // Provide a user-friendly message
                     val userFriendlyError = when {
                         // Check for specific Firebase exceptions if needed, e.g., user not found
                         // task.exception is FirebaseAuthInvalidUserException -> "No account found with this email."

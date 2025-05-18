@@ -18,7 +18,6 @@ import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 
 
-// Keep LoginResult sealed interface
 sealed interface LoginResult {
     data object Idle : LoginResult
     data object Loading : LoginResult
@@ -26,11 +25,11 @@ sealed interface LoginResult {
     data class Error(val message: String) : LoginResult
 }
 
-private const val TAG = "LoginViewModel" // Add TAG
+private const val TAG = "LoginViewModel"
 
 @HiltViewModel
 class LoginViewModel @Inject constructor(
-    private val userDao: UserDao // Keep UserDao to fetch local ID after Firebase login
+    private val userDao: UserDao // UserDao to fetch local ID after Firebase login
 ) : ViewModel() {
 
     private val _email = mutableStateOf("")
@@ -45,7 +44,7 @@ class LoginViewModel @Inject constructor(
     private lateinit var firebaseAuth: FirebaseAuth // Declare FirebaseAuth instance
 
     init {
-        firebaseAuth = FirebaseAuth.getInstance() // Initialize in init block
+        firebaseAuth = FirebaseAuth.getInstance() // Initialize
     }
 
 
@@ -77,15 +76,14 @@ class LoginViewModel @Inject constructor(
 
         viewModelScope.launch {
             try {
-                // 1. Sign in with Firebase Authentication
+                // Sign in with Firebase Authentication
                 Log.d(TAG, "Attempting Firebase sign in...")
                 val authResult = firebaseAuth.signInWithEmailAndPassword(currentEmail, currentPassword).await()
                 val firebaseUser = authResult.user
                 Log.d(TAG, "Firebase sign in successful: UID=${firebaseUser?.uid}")
 
                 if (firebaseUser != null) {
-                    // 2. Get the corresponding LOCAL user ID from Room DB using the email
-                    // (Alternatively, use firebaseUser.uid if you stored it locally and added a DAO query for it)
+                    // Get the corresponding LOCAL user ID from Room DB using the email
                     Log.d(TAG, "Fetching local user details for email: $currentEmail")
                     val localUser = withContext(Dispatchers.IO) {
                         userDao.getUserByEmail(currentEmail) // Fetch local user by email
@@ -93,14 +91,14 @@ class LoginViewModel @Inject constructor(
 
                     if (localUser != null) {
                         Log.d(TAG, "Local user found with ID: ${localUser.id}")
-                        // 3. Report Success with the LOCAL Database ID
+                        // Report Success with the LOCAL Database ID
                         _loginState.value = LoginResult.Success(localUser.id)
                     } else {
-                        // This indicates an inconsistency - user exists in Firebase Auth but not locally
+                        // an inconsistency - user exists in Firebase Auth but not locally
                         Log.e(TAG, "Login failed: User authenticated with Firebase but not found in local DB!")
-                        // You might want to automatically create the local record here or show an error
+                        // automatically create the local record here or show an error
                         _loginState.value = LoginResult.Error("Login failed: User data mismatch. Please try signing up again or contact support.")
-                        // Optional: Sign the user out of Firebase if local record is missing
+                        // Sign the user out of Firebase if local record is missing
                         firebaseAuth.signOut()
                     }
                 } else {
@@ -122,8 +120,6 @@ class LoginViewModel @Inject constructor(
         }
     }
 
-    // Remove the insecure placeholder password verification
-    // private fun verifyPasswordPlaceholder(...) { ... }
 
     fun resetLoginState() {
         if (_loginState.value is LoginResult.Success || _loginState.value is LoginResult.Error) {

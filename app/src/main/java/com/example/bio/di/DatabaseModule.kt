@@ -1,4 +1,4 @@
-package com.example.bio.di // Or your preferred location
+package com.example.bio.di
 
 import android.content.Context
 import androidx.room.Room
@@ -24,39 +24,39 @@ object DatabaseModule {
         return Room.databaseBuilder(
             appContext,
             AppDatabase::class.java,
-            "soundwave_database" // Your database name
+            "soundwave_database" //  database name
         )
             .fallbackToDestructiveMigration() // Consider proper migrations for production
             .build()
     }
 
-    // Provide ApiTokenDao (Was correct, renamed function for clarity)
+    // Provide ApiTokenDao
     @Provides
     @Singleton
     fun provideApiTokenDao(appDatabase: AppDatabase): ApiTokenDao {
         return appDatabase.apiTokenDao()
     }
 
-    // Provide MessageDao (Was correct, renamed function for clarity)
+    // Provide MessageDao
     @Provides
     @Singleton
     fun provideMessageDao(appDatabase: AppDatabase): MessageDao {
         return appDatabase.messageDao()
     }
 
-    // Provide UserDao (Corrected function name and return type)
+    // Provide UserDao
     @Provides
     @Singleton
     fun provideUserDao(appDatabase: AppDatabase): UserDao { // <-- Return UserDao type
         return appDatabase.userDao() // <-- Call userDao() method
     }
 
-    // Provide UserPreferenceDao (Added missing provider)
+    // Provide UserPreferenceDao
     @Provides
     @Singleton
     fun provideUserPreferenceDao(appDatabase: AppDatabase): UserPreferenceDao {
         return appDatabase.userPreferencesDao() // <-- Call userPreferencesDao() method
     }
 
-    // Removed the incorrect/placeholder 'provideYourDao' function
+
 }

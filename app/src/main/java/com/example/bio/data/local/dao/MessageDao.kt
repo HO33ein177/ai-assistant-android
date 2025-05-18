@@ -15,12 +15,10 @@ interface MessageDao {
     @Query("SELECT * FROM messages WHERE user_id = :userId AND conversation_id = :conversationId ORDER BY timestamp ASC")
     fun getMessagesForConversation(userId: Int, conversationId: String): Flow<List<Message>>
 
-    // Kept the old query for distinct IDs if it's used elsewhere,
-    // but the new one is preferred for the history page.
+
     @Query("SELECT DISTINCT conversation_id FROM messages WHERE user_id = :userId ORDER BY timestamp DESC")
     fun getAllConversationIds(userId: Int): Flow<List<String>>
 
-    // New query to get conversation summaries
     // It selects the conversation_id, the content of the first message (min timestamp),
     // and the timestamp of the last message (max timestamp) for each conversation.
     @Query("""

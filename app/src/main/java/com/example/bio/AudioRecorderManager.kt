@@ -13,14 +13,9 @@ class AudioRecorderManager(private val context: Context) {
     private var outputFile: File? = null
 
     fun startRecording(): String? {
-        // --- REMOVE THIS LINE ---
-        // stopRecording() // Ensure clean state <-- REMOVE THIS
-
-        // Ensure any previous recorder is explicitly released BEFORE creating a new one
-        // This check is slightly different from calling stopRecording()
         if (recorder != null) {
             Log.w("AudioRecorder", "Start recording called while recorder wasn't null. Releasing previous.")
-            releaseRecorder() // Release just in case
+            releaseRecorder()
         }
 
 
@@ -46,7 +41,6 @@ class AudioRecorderManager(private val context: Context) {
                 Log.d("AudioRecorder", "Output format set.")
                 Log.d("AudioRecorder", "Audio encoder set.")
                 setAudioSource(MediaRecorder.AudioSource.MIC) // Or try VOICE_COMMUNICATION later
-                // --- CHANGE THESE LINES ---
                 setOutputFormat(MediaRecorder.OutputFormat.MPEG_4) // Container for AMR
                 setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB)
                 setOutputFile(filePath)
@@ -84,30 +78,22 @@ class AudioRecorderManager(private val context: Context) {
             recorder?.stop() // Stop recording
             Log.d("AudioRecorder", "Recording stopped.")
         } catch (e: IllegalStateException) {
-            // stop() can fail if called in wrong state (e.g., never started)
             Log.e("AudioRecorder", "stop() failed: ${e.message}", e)
-            // May need to delete outputFile here if stop fails uncleanly
-            // outputFile?.delete()
             releaseRecorder() // Still attempt to release
             return null // Indicate failure
         } catch (e: RuntimeException) { // stop() can also throw RuntimeException
             Log.e("AudioRecorder", "stop() failed with RuntimeException: ${e.message}", e)
-            // outputFile?.delete()
             releaseRecorder()
             return null
         } finally {
-            // Ensure release happens even if stop was successful or threw specific exceptions
             releaseRecorder()
         }
-        // Return path only if stop was implicitly successful (didn't throw and release executed)
         return path
     }
 
 
-    // releaseRecorder remains largely the same, ensures recorder is nullified
     fun releaseRecorder() {
         if (recorder == null) {
-            // Log.d("AudioRecorder", "releaseRecorder called but recorder was already null.")
             return // Nothing to release
         }
         try {
@@ -118,13 +104,8 @@ class AudioRecorderManager(private val context: Context) {
         } catch (e: Exception) {
             Log.e("AudioRecorder", "Error releasing recorder: ${e.message}", e)
         } finally {
-            recorder = null // Crucial: Ensure the instance variable is nullified
-            // Don't delete outputFile here, stopRecording should return the path
-            // If release is called due to error *during* recording, the file might be junk anyway
-            // Only delete if called from an error path where the file isn't needed.
-            // For simplicity, let's not delete here. Let stopRecording return path.
+            recorder = null
         }
     }
 }
 
-    // Ensure recorder is released if the app is destroyed while recording

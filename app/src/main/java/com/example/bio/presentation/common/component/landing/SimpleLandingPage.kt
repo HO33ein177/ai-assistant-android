@@ -1,4 +1,4 @@
-package com.example.bio.presentation.common.component.landing // Adjust package as needed
+package com.example.bio.presentation.common.component.landing
 
 import android.util.Log
 import androidx.compose.foundation.layout.Box
@@ -14,7 +14,6 @@ private const val TAG = "SimpleLandingScreen"
 
 @Composable
 fun SimpleLandingScreen(userId: Int) {
-    // Log that the screen is composing
     LaunchedEffect(Unit) {
         Log.d(TAG, ">>> SimpleLandingScreen Composed Successfully for userId: $userId <<<")
     }

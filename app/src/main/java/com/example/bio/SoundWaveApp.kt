@@ -8,8 +8,6 @@ import dagger.hilt.android.HiltAndroidApp
 
 @HiltAndroidApp
 class SoundWaveApp : Application() {
-//    lateinit var database: AppDatabase
-//        private set
     override fun onCreate(){
         super.onCreate()
         FirebaseApp.initializeApp(this) // Initialize Firebase
@@ -17,10 +15,6 @@ class SoundWaveApp : Application() {
         firebaseAppCheck.installAppCheckProviderFactory(
             PlayIntegrityAppCheckProviderFactory.getInstance()
         )
-//        database = Room.databaseBuilder(
-//            applicationContext,
-//            AppDatabase::class.java,
-//            "soundwave_database"
-//        ).build()
+
     }
 }

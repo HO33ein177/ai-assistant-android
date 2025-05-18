@@ -41,12 +41,6 @@ import java.util.Locale
 import java.util.TimeZone
 import java.util.UUID
 
-// Data class for ConversationSummary (if not already defined elsewhere, place it in a suitable file)
-// data class ConversationSummary(
-//    val conversationId: String,
-//    val lastMessageTimestamp: Long,
-//    val firstMessageContent: String?
-// )
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -120,7 +114,7 @@ fun ConversationListScreen(
                                 navController.navigate(AppDestinations.createChatRoute(userId, summary.conversationId))
                             }
                         )
-                        Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)) // Subtle divider
+                        Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                     }
                 }
             }
@@ -133,7 +127,7 @@ fun ConversationListItem(
     summary: ConversationSummary,
     onClick: () -> Unit
 ) {
-    // Function to format timestamp (could be moved to a utility file)
+    // Function to format timestamp
     fun formatTimestamp(timestamp: Long): String {
         val sdf = SimpleDateFormat("MMM dd, HH:mm", Locale.getDefault())
         sdf.timeZone = TimeZone.getDefault() // Use local timezone
@@ -143,10 +137,9 @@ fun ConversationListItem(
     ListItem(
         modifier = Modifier
             .clickable(onClick = onClick)
-            .padding(horizontal = 8.dp, vertical = 4.dp), // Add some padding around items
+            .padding(horizontal = 8.dp, vertical = 4.dp),
         headlineContent = {
             Text(
-                // Display the first message content or a fallback
                 text = summary.firstMessageContent?.take(100) ?: "Chat: ...${summary.conversationId.takeLast(8)}",
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -170,7 +163,7 @@ fun ConversationListItem(
             )
         },
         colors = ListItemDefaults.colors(
-            containerColor = MaterialTheme.colorScheme.surface // Or surfaceVariant for a slight difference
+            containerColor = MaterialTheme.colorScheme.surface
         )
     )
 }

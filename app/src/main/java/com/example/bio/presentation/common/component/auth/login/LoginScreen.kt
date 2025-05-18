@@ -66,9 +66,7 @@ fun LoginScreen(
         when (val state = loginState) {
             is LoginResult.Success -> {
                 Toast.makeText(context, "Login Successful!", Toast.LENGTH_SHORT).show()
-                // --- NAVIGATION CHANGE ---
                 // Generate a new conversation ID
-//                val newConversationId = UUID.randomUUID().toString()
                 // Uses the SAME ID every time
                 val commonConversationId = "GLOBAL_CHAT_ID" // Or any fixed string you choose
                 val userId = state.userId
@@ -76,16 +74,12 @@ fun LoginScreen(
                 Log.d(TAG, "Login successful. Navigating to ChatScreen with userId: $userId, conversationId: $commonConversationId")
 
                 // Navigate to Chat Screen instead of Conversation List
-//                navController.navigate(AppDestinations.createChatRoute(state.userId, newConversationId)) {
-//                    // Clear the login screen and anything before it from backstack
-//                    popUpTo(navController.graph.startDestinationId) { inclusive = true }
-//                }
+                // Clear the login screen and anything before it from backstack
 
                 navController.navigate(AppDestinations.createChatRoute(userId, commonConversationId)) {
                     // Try popping only the login screen itself
                     popUpTo(AppDestinations.LOGIN_ROUTE) { inclusive = true }
                 }
-                // --- END NAVIGATION CHANGE ---
                 viewModel.resetLoginState() // Reset state after navigation handled
             }
             is LoginResult.Error -> {
@@ -116,7 +110,7 @@ fun LoginScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                // --- Logo and Title ---
+                // Logo and Title
                 Text(
                     modifier = Modifier.padding(top = 16.dp),
                     text = "Soundwave",
@@ -125,11 +119,11 @@ fun LoginScreen(
                         fontSize = 40.sp
                     ),
                     // Use a color defined in your resources or theme
-                    color = colorResource(R.color.purple_700) // Example, adjust as needed
+                    color = colorResource(R.color.purple_700)
                 )
 
                 Image(
-                    painter = painterResource(id = R.drawable.logo), // Your logo
+                    painter = painterResource(id = R.drawable.logo), // logo
                     contentDescription = "logo",
                     modifier = Modifier.size(160.dp)
                 )
@@ -138,7 +132,7 @@ fun LoginScreen(
             GradientBox(
                 modifier = Modifier
                     .fillMaxSize()
-                    .weight(1.3f) // Keep layout structure
+                    .weight(1.3f) // layout structure
                     .clip(RoundedCornerShape(topStart = 40.dp, topEnd = 40.dp))
             ) {
 
@@ -148,58 +142,58 @@ fun LoginScreen(
                     Text(
                         modifier = Modifier
                             .padding(horizontal = 16.dp, vertical = 16.dp),
-                        text = "ورود به حساب کاربری", // "Login to Account"
+                        text = "ورود به حساب کاربری", // Login to Account
                         style = TextStyle(
-                            fontFamily = FontFamily(Font(R.font.vazirmatn_bold)), // Your font
+                            fontFamily = FontFamily(Font(R.font.vazirmatn_bold)), // font
                             fontSize = 24.sp,
                             fontWeight = FontWeight.ExtraBold
                         ),
-                        color = colorResource(R.color.black) // Or theme color
+                        color = colorResource(R.color.black) // theme color
                     )
 
                     Spacer(Modifier.height(16.dp))
-                    // --- Email Field ---
+                    // Email Field
                     MyBasicTextField(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp),
                         value = email,
-                        label = "آدرس ایمیل", // "Email Address"
+                        label = "آدرس ایمیل", // Email Address
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Email
                         ),
-                        keyboardActions = KeyboardActions(), // Can add action e.g., focus next
+                        keyboardActions = KeyboardActions(),
                         trailingIcon = Icons.Outlined.Email,
                         onValueChange = viewModel::changeEmail, // Update ViewModel using function reference
-                        // Optionally indicate error state based on ViewModel
+                        // indicate error state based on ViewModel
                         isError = loginState is LoginResult.Error
                     )
 
                     Spacer(Modifier.height(24.dp))
 
-                    // --- Password Field ---
+                    // Password Field
                     MyBasicTextField(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp),
                         value = password,
-                        label = "رمز عبور", // "Password"
+                        label = "رمز عبور", // Password
                         keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Password // Use Password type
+                            keyboardType = KeyboardType.Password // Password type
                         ),
-                        keyboardActions = KeyboardActions(), // Can add action e.g., trigger login
-                        isPassword = true, // Assuming MyBasicTextField handles visibility toggle
+                        keyboardActions = KeyboardActions(),
+                        isPassword = true,
                         trailingIcon = Icons.Outlined.Lock,
                         onValueChange = viewModel::changePassword, // Update ViewModel using function reference
-                        // Optionally indicate error state based on ViewModel
+                        // indicate error state based on ViewModel
                         isError = loginState is LoginResult.Error
                     )
 
                     Spacer(Modifier.height(24.dp))
 
-                    // --- Login Button ---
+                    //  Login Button
                     RoundedButton(
-                        text = if (isLoading) "در حال ورود..." else "ورود", // "Login"
+                        text = if (isLoading) "در حال ورود..." else "ورود", // Login
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp),
@@ -208,17 +202,15 @@ fun LoginScreen(
                             // Trigger login attempt in ViewModel
                             viewModel.attemptLogin()
                         }
-                        // Make sure RoundedButton accepts containerColor or similar
-                        // containerColor = colorResource(R.color.main_blue) // Example color
                     )
 
-                    // --- Links ---
+                    // Links
                     Row(
                         modifier = Modifier
                             .padding(vertical = 8.dp, horizontal = 16.dp)
-                            .fillMaxWidth(), // Ensure Row takes width for arrangement
+                            .fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween // Keep spacing
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         // Forgot Password Link
                         Text(
@@ -228,9 +220,9 @@ fun LoginScreen(
                                     navController.navigate(AppDestinations.FORGET_PASSWORD_ROUTE)
                                 },
                             text = "رمز عبور را فراموش کرده اید؟", // "Forgot Password?"
-                            color = colorResource(R.color.purple_700), // Use appropriate color
+                            color = colorResource(R.color.purple_700),
                             style = LocalTextStyle.current.copy(
-                                fontFamily = FontFamily(Font(R.font.vazirmatn_regular)) // Your font
+                                fontFamily = FontFamily(Font(R.font.vazirmatn_regular))
                             )
                         )
 
@@ -241,9 +233,9 @@ fun LoginScreen(
                                 navController.navigate(AppDestinations.SIGNUP_ROUTE)
                             },
                             text = "ایجاد حساب کاربری", // "Create Account"
-                            color = colorResource(R.color.purple_700), // Use appropriate color
+                            color = colorResource(R.color.purple_700),
                             style = LocalTextStyle.current.copy(
-                                fontFamily = FontFamily(Font(R.font.vazirmatn_regular)) // Your font
+                                fontFamily = FontFamily(Font(R.font.vazirmatn_regular))
                             )
                         )
                     }

@@ -28,21 +28,17 @@ import java.util.UUID
 import javax.inject.Inject
 
 
-// Define constants for sender types
+// constants for sender types
 const val SENDER_USER = "user"
 const val SENDER_AI = "ai"
 private const val TAG = "ChatViewModel"
 
-// !!! INSECURE: Hardcoded API Key - For temporary testing ONLY !!!
-// Replace "YOUR_API_KEY_HERE" with your actual Gemini API Key
+
 private const val HARDCODED_API_KEY = "AIzaSyD9s7AsAjgdSTlMvASKBZLuQVcpHjnT88Y"
-// !!! !!!
 
 @HiltViewModel
 class ChatViewModel @Inject constructor(
     private val messageDao: MessageDao,
-    // Remove apiTokenDao from constructor if no longer used
-    // private val apiTokenDao: ApiTokenDao,
     @ApplicationContext private val applicationContext: Context,
 ) : ViewModel() {
 
@@ -55,8 +51,6 @@ class ChatViewModel @Inject constructor(
     private val _isRecording = MutableStateFlow(false)
     open val isRecording: StateFlow<Boolean> = _isRecording.asStateFlow()
 
-    // No longer needed if key is hardcoded
-    // private val _apiKey = MutableStateFlow<String?>(null)
     private var generativeModel: GenerativeModel? = null
 
     private var currentUserId: Int? = null
@@ -69,10 +63,8 @@ class ChatViewModel @Inject constructor(
     open fun loadDataForConversation(userId: Int, conversationId: String) {
         Log.d(TAG, "loadDataForConversation called for userId: $userId, conversationId: $conversationId")
         // Check if already initialized for this conversation
-        // No need to check userId against the key source anymore
         if (currentConversationId == conversationId && generativeModel != null) {
             Log.d(TAG, "Model already initialized for this conversation. Skipping re-initialization.")
-            // Still load history in case it changed
             loadAndObserveHistory(userId, conversationId)
             return
         }
@@ -90,7 +82,6 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             Log.d(TAG, "Data loading coroutine started.")
 
-            // --- Use Hardcoded Key ---
             val token = HARDCODED_API_KEY
             if (token == "YOUR_API_KEY_HERE" || token.isBlank()) {
                 Log.e(TAG, "*** API Key is not set in the HARDCODED_API_KEY constant! ***")
@@ -100,19 +91,11 @@ class ChatViewModel @Inject constructor(
                 return@launch
             }
             Log.d(TAG, "Using hardcoded API Key.")
-            // --- End Hardcoded Key Usage ---
 
-            // --- Remove DB Fetch ---
-            // Log.d(TAG, "Attempting to fetch API key for userId: $userId")
-            // val token = fetchApiKey(userId) // Remove this call
-            // if (token == null) { ... } // Remove this block
-            // _apiKey.value = token // Remove this
-            // Log.d(TAG, "API Key fetched successfully.") // Remove this
-            // --- End Remove DB Fetch ---
 
 
             Log.d(TAG, "Attempting to initialize Generative Model.")
-            initializeGenerativeModel(token) // Use the hardcoded token directly
+            initializeGenerativeModel(token) // Use the token directly
             if (generativeModel == null) {
                 Log.e(TAG, "Generative Model initialization failed.")
                 handleError("Failed to initialize AI Model with the provided key.", null)
@@ -128,17 +111,11 @@ class ChatViewModel @Inject constructor(
         }
     }
 
-    // --- fetchApiKey function is no longer needed ---
-    /*
-    private suspend fun fetchApiKey(userId: Int): String? {
-        // ... implementation ...
-    }
-    */
 
-    // --- initializeGenerativeModel remains the same ---
+    //  initializeGenerativeModel
     private fun initializeGenerativeModel(apiKey: String) {
         try {
-            val config = generationConfig { /* Add specific config if needed */ }
+            val config = generationConfig {  }
             generativeModel = GenerativeModel(
                 modelName = "gemini-1.5-flash",
                 apiKey = apiKey,
@@ -152,9 +129,8 @@ class ChatViewModel @Inject constructor(
     }
 
 
-    // --- loadAndObserveHistory remains the same ---
+    // loadAndObserveHistory
     private fun loadAndObserveHistory(userId: Int, conversationId: String) {
-        // ... (Keep existing implementation, ensure it uses the passed userId for the DB query) ...
         Log.d(TAG, "loadAndObserveHistory started for userId: $userId, conversationId: $conversationId")
         historyLoadingJob = viewModelScope.launch {
             Log.d(TAG, "History loading coroutine launched.")
@@ -206,8 +182,8 @@ class ChatViewModel @Inject constructor(
         }
     }
 
-    // --- sendMessage, startRecordingAudio, stopRecordingAudioAndSend, etc. remain the same ---
-    // Ensure they use currentUserId when creating Message objects for DB insertion
+    // sendMessage, startRecordingAudio, stopRecordingAudioAndSend
+    // Ensure use currentUserId when creating Message objects for DB insertion
     open fun sendMessage(userInput: String) {
         val userId = currentUserId ?: return run { Log.e(TAG, "[sendMessage] Failed: currentUserId is null") }
         val conversationId = currentConversationId ?: return run { Log.e(TAG, "[sendMessage] Failed: currentConversationId is null") }
@@ -220,18 +196,15 @@ class ChatViewModel @Inject constructor(
         if (_isLoading.value) return run { Log.w(TAG, "[sendMessage] Ignored: isLoading is true") }
         if (_isRecording.value) return run { Log.w(TAG, "[sendMessage] Ignored: isRecording is true") }
 
-        // ... rest of sendMessage ...
-        // Ensure 'userId' is used when creating userDbMessage and aiDbMessage
+        // rest of sendMessage
+        // Ensure 'userId' used when creating userDbMessage and aiDbMessage
         val userDbMessage = Message(userId = userId, conversationId = conversationId, sender = SENDER_USER, content = userInput, timestamp = System.currentTimeMillis())
-        // ... API call ...
-        // Inside try block:
-//         val aiDbMessage = Message(userId = userId, conversationId = conversationId, sender = SENDER_AI, content = responseText, timestamp = System.currentTimeMillis())
-        // ... rest of sendMessage ...
+        // API call
         viewModelScope.launch {
             Log.d(TAG, "[sendMessage] Saving user message to DB...")
             withContext(Dispatchers.IO) {
                 try {
-                    messageDao.insert(userDbMessage) // Ensure userId used correctly here
+                    messageDao.insert(userDbMessage) // Ensure userId used correctly
                     Log.d(TAG, "[sendMessage] User message saved to DB successfully.")
                 } catch (e: Exception) {
                     Log.e(TAG, "[sendMessage] Failed to save user message to DB", e)
@@ -296,7 +269,7 @@ class ChatViewModel @Inject constructor(
         }
         if (!_isRecording.value) return run { Log.w(TAG, "[stopRecording] Ignored: not recording") }
 
-        // Log the original prompt if needed, but don't use it directly for the message text
+        // Log the original prompt if needed
         Log.d(TAG, "[stopRecording] Stopping recording and processing. Original UI prompt/text was: '$prompt'")
         viewModelScope.launch {
             _isRecording.value = false
@@ -312,13 +285,11 @@ class ChatViewModel @Inject constructor(
                     persistentAudioFilePath = copyAudioToInternalStorage(tempAudioFile)
 
                     if (persistentAudioFilePath != null) {
-                        // <<< --- CHANGE HERE --- >>>
-                        // Use a generic placeholder for the voice message text
                         val voiceMessagePlaceholderText = "[Voice Message]"
 
-                        // Add AUDIO message to UI with the placeholder text
+                        //  AUDIO message with  placeholder text
                         val audioChatMessage = ChatMessage(
-                            text = voiceMessagePlaceholderText, // Use placeholder
+                            text = voiceMessagePlaceholderText,
                             isFromUser = true,
                             messageType = MessageType.AUDIO,
                             audioFilePath = persistentAudioFilePath
@@ -335,12 +306,11 @@ class ChatViewModel @Inject constructor(
                             timestamp = System.currentTimeMillis(),
                             audioPath = persistentAudioFilePath
                         )
-                        // <<< --- END CHANGE --- >>>
 
-                        // ... (save audioDbMessage to DB) ...
+                        // save audioDbMessage to DB
                         withContext(Dispatchers.IO) { try { messageDao.insert(audioDbMessage); Log.d(TAG, "[stopRecording] Audio placeholder saved.") } catch (e: Exception) { Log.e(TAG, "[stopRecording] Failed to save audio placeholder", e) } }
 
-                        // --- Send ONLY audio to API (Keep this part as is) ---
+                        // Send ONLY audio to API
                         try {
                             val audioBytes = tempAudioFile.readBytes()
                             val inputContent = content {
@@ -352,7 +322,7 @@ class ChatViewModel @Inject constructor(
                             Log.d("ChatViewModel", "Received response from Gemini.")
                             val responseText = response.text ?: "Sorry, I couldn't process the audio."
 
-                            // ... (Add AI response (TEXT) to UI and DB - remains the same) ...
+                            // Add AI response text to UI and DB
                             val aiTextChatMessage = ChatMessage(
                                 text = responseText,
                                 isFromUser = false,
@@ -398,10 +368,10 @@ class ChatViewModel @Inject constructor(
             }
 
             _isLoading.value = false
-        } // End viewModelScope.launch
+        }
     }
 
-    // --- copyAudioToInternalStorage, handleError, onCleared remain the same ---
+    //  copyAudioToInternalStorage, handleError, onCleared
     private suspend fun copyAudioToInternalStorage(sourceFile: File): String? {
         Log.d(TAG, "[copyAudio] Copying ${sourceFile.absolutePath} to internal storage.")
         return withContext(Dispatchers.IO) {

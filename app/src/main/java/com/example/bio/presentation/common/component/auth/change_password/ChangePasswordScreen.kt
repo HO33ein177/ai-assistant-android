@@ -17,6 +17,7 @@ import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -28,6 +29,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
@@ -41,8 +43,7 @@ import com.example.bio.R
 import com.example.bio.presentation.common.component.reusable.MyBasicTextField
 import com.example.bio.presentation.common.component.reusable.RoundedButton
 
-// Make sure ResetStatus is accessible (e.g., defined in ViewModel file or its own file)
-// import com.example.bio.presentation.common.component.auth.change_password.ResetStatus // If defined elsewhere
+
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -62,9 +63,6 @@ fun ChangePasswordScreen(
         when (val status = resetStatus) {
             is ResetStatus.Success -> {
                 Toast.makeText(context, "ایمیل بازنشانی رمز عبور با موفقیت ارسال شد!", Toast.LENGTH_LONG).show()
-                // Optional: Automatically navigate back after a short delay or keep the user here
-                // kotlinx.coroutines.delay(2000)
-                // navController.popBackStack()
                 viewModel.resetStatusHandled() // Reset status after showing toast
             }
             is ResetStatus.Error -> {
@@ -77,14 +75,9 @@ fun ChangePasswordScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text("بازیابی رمز عبور") })
-            // Optional: Add navigation icon to go back
-            // navigationIcon = {
-            //     IconButton(onClick = { navController.popBackStack() }) {
-            //         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-            //     }
-            // }
-        }
+            TopAppBar(title = { Text("                       بازیابی رمز عبور") })
+        },
+         containerColor = Color(0xFFE8EAF6),
     ) { paddingValues ->
 
         Column(
@@ -109,12 +102,11 @@ fun ChangePasswordScreen(
                         fontWeight = FontWeight.Bold,
                         fontSize = 40.sp
                     ),
-                    // Use a color defined in your resources or theme
-                    color = colorResource(R.color.purple_500) // Example, adjust as needed
+                    color = colorResource(R.color.purple_500)
                 )
 
                 Image(
-                    painter = painterResource(id = R.drawable.logo), // Your logo
+                    painter = painterResource(id = R.drawable.logo), // logo
                     contentDescription = "logo",
                     modifier = Modifier.size(160.dp)
                 )
@@ -133,7 +125,7 @@ fun ChangePasswordScreen(
             // Email Input Field
             MyBasicTextField(
                 value = email,
-                onValueChange = viewModel::onEmailChange, // Use correct function reference
+                onValueChange = viewModel::onEmailChange, // Use function reference
                 label = "آدرس ایمیل",
                 keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                     keyboardType = KeyboardType.Email
@@ -158,9 +150,7 @@ fun ChangePasswordScreen(
                 }
             }
 
-            // Remove any logic or UI that previously displayed CodeScreen or PasswordScreen
 
-            // Optional: Button to manually navigate back
             Spacer(modifier = Modifier.height(16.dp))
             TextButton(
                 onClick = { navController.popBackStack() },
