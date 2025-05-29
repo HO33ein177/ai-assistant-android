@@ -18,7 +18,7 @@ fun GradientBox(
 ) {
     Box(
         modifier = modifier.background(
-            MaterialTheme.customColors.appGrey
+            color = Color.Transparent
         )
     ) {
         content()

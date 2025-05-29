@@ -13,9 +13,9 @@ import androidx.room.Index // Import Index
 )
 data class User(
     @PrimaryKey(autoGenerate = true)
-    val id: Int = 0, // Keep auto-generated primary key for local relations
+    val id: Int = 0, //  auto-generated primary key for local relations
     val email: String,
-    val password: String, // Keep this field, but store "" or null after signup
+    val password: String, // store "" or null after signup
     val name: String? = null, // Make name nullable if it's optional
-    val firebaseUid: String? = null // <<< ADD THIS FIELD (make nullable initially)
+    val firebaseUid: String? = null //make nullable initially
 )

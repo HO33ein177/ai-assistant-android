@@ -57,7 +57,7 @@ fun AppNavigation() {
         navController = navController,
         startDestination = AppDestinations.SPLASH_ROUTE // Start with Splash
     ) {
-        // Splash Screen - Navigates to Login
+        // Splash Screen
         composable(route = AppDestinations.SPLASH_ROUTE) {
             LaunchedEffect(Unit) {
                 kotlinx.coroutines.delay(1500) // Simulate splash duration

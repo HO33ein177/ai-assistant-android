@@ -117,7 +117,7 @@ class ChatViewModel @Inject constructor(
         try {
             val config = generationConfig {  }
             generativeModel = GenerativeModel(
-                modelName = "gemini-1.5-flash",
+                modelName = "gemini-2.0-flash",
                 apiKey = apiKey,
                 generationConfig = config
             )

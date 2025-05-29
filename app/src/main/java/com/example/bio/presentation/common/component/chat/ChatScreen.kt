@@ -125,7 +125,7 @@ fun ChatScreen(
     val userViewModel: UserViewModel = hiltViewModel() // Inject UserViewModel for logout
 
 
-    val chatHistory by chatViewModel.chatHistory.collectAsStateWithLifecycle()
+        val chatHistory by chatViewModel.chatHistory.collectAsStateWithLifecycle()
     val isLoading by chatViewModel.isLoading.collectAsStateWithLifecycle()
     val isRecording by chatViewModel.isRecording.collectAsStateWithLifecycle()
 

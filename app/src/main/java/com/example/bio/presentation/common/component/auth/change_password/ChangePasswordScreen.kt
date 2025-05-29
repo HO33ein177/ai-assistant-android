@@ -35,6 +35,7 @@ import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -114,12 +115,13 @@ fun ChangePasswordScreen(
             Text(
                 text = "آدرس ایمیل خود را وارد کنید",
                 style = MaterialTheme.typography.headlineSmall,
-                modifier = Modifier.padding(bottom = 8.dp)
+                modifier = Modifier.padding(bottom = 24.dp)
             )
             Text(
-                text = "ما ایمیلی حاوی دستورالعمل های بازیابی رمز عبور برای شما ارسال خواهیم کرد.",
+                text = "ما ایمیلی حاوی دستورالعمل های بازیابی رمز عبور برای شما ارسال خواهیم کرد",
                 style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(bottom = 32.dp)
+                modifier = Modifier.padding(bottom = 32.dp),
+                textAlign = TextAlign.Center
             )
 
             // Email Input Field

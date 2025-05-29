@@ -14,7 +14,7 @@ object FirebaseModule {
     @Provides
     @Singleton // Ensures only one instance of FirebaseAuth is created
     fun provideFirebaseAuth(): FirebaseAuth {
-        // The standard way to get the FirebaseAuth instance
+        // get the FirebaseAuth instance
         return FirebaseAuth.getInstance()
     }
 
