@@ -49,38 +49,38 @@ val MaterialTheme.customColors: CustomColors
     get() = LocalCustomColors.current
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
+    primary = CyanNeon,
+    secondary = DarkNavy,
+    tertiary = ElectricPurple,
+    background = BackgroundColor,
+    surface = BackgroundColor,
+    onPrimary = DarkNavy,
+    onSecondary = TextColor,
+    onTertiary = TextColor,
+    onBackground = TextColor,
+    onSurface = TextColor
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
+    primary = CyanNeon,
+    secondary = DarkNavy,
+    tertiary = ElectricPurple,
+    background = BackgroundColor,
+    surface = BackgroundColor,
+    onPrimary = DarkNavy,
+    onSecondary = TextColor,
+    onTertiary = TextColor,
+    onBackground = TextColor,
+    onSurface = TextColor
 )
 
 @Composable
 fun BioTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
-    }
-
-    val customColors = CustomColors(
-        appGrey = if (darkTheme) Grey  else Grey,
-        anotherCustomColor = if (darkTheme) Color.Yellow else Color.Cyan,
-        lightBlue = LightBlue
-
-    )
+    val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
 
     val view = LocalView.current
     if (!view.isInEditMode) {
@@ -90,12 +90,9 @@ fun BioTheme(
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
         }
     }
-
-    CompositionLocalProvider(LocalCustomColors provides customColors) {
         MaterialTheme(
             colorScheme = colorScheme,
-            typography = Typography, // Ensure Typography is defined
+            typography = Typography,
             content = content
         )
     }
-}

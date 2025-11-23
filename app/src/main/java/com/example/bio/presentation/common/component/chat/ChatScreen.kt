@@ -92,6 +92,7 @@ import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import com.example.bio.AppDestinations
 import com.example.bio.R
+import com.example.bio.data.local.entity.User
 import com.example.bio.presentation.common.component.auth.UserViewModel
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
@@ -173,8 +174,9 @@ fun ChatScreen(
             topBar = {
                 TopAppBar(
                     title = {
+                        val userInfo by userViewModel.userInfo.collectAsStateWithLifecycle()
                         Text(
-                            "Chat: ...${conversationId.takeLast(6)}",
+                            text = userInfo?.localUser?.name ?: "Chat: ...${conversationId.takeLast(6)}",
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -188,23 +190,8 @@ fun ChatScreen(
                                 contentDescription = "History"
                             )
                         }
-                        // Logout Button
-                        IconButton(onClick = {
-                            userViewModel.signOut() // Perform Firebase sign out
-                            // Navigate to Login screen and clear back stack
-                            navController.navigate(AppDestinations.LOGIN_ROUTE) {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    inclusive = true // Clears all screens up to and including the start destination of the graph
-                                }
-                                launchSingleTop = true // Avoid multiple copies of Login screen
-                            }
-                            Toast.makeText(context, "Logged out", Toast.LENGTH_SHORT).show()
-                        }) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.Logout,
-                                contentDescription = "Logout"
-                            )
-                        }
+
+
                     },
 
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -334,7 +321,20 @@ fun ChatScreen(
                 }
                 isHistoryPageOpen = false
             },
-            currentUserId = userId
+            currentUserId = userId,
+            onLogout = {
+                userViewModel.signOut()
+                navController.navigate(AppDestinations.LOGIN_ROUTE) {
+                    popUpTo(navController.graph.findStartDestination().id) {
+                        inclusive = true
+                    }
+                    launchSingleTop = true
+                }
+                Toast.makeText(context, "Logged out", Toast.LENGTH_SHORT).show()
+            },
+            onNavigateToQuiz = {
+                navController.navigate(AppDestinations.QUIZ_ENTRY_ROUTE)
+            }
         )
     }
 
@@ -380,8 +380,8 @@ fun ChatInputArea(
     }
 
     Surface(
-        shadowElevation = 8.dp,
-        color = MaterialTheme.colorScheme.surfaceVariant
+        shadowElevation = 0.dp,
+        color = Color.Transparent
     ) {
         Row(
             modifier = Modifier
@@ -533,8 +533,9 @@ fun HistoryPage(
     isLoading: Boolean,
     onHistoryItemSelected: (String) -> Unit,
     onNewChatClicked: (String) -> Unit, // New callback for starting a new chat
-    currentUserId: Int
-) {
+    currentUserId: Int,
+    onLogout: () -> Unit,
+    onNavigateToQuiz: () -> Unit) {
     var selectedConversationId by remember { mutableStateOf<String?>(null) }
 
     fun formatTimestamp(timestamp: Long): String {
@@ -667,39 +668,37 @@ fun HistoryPage(
                             }
                         }
                     }
+                    // Buttons for Logout and Quiz
+                    Column {
+                        Divider(
+                            color = MaterialTheme.colorScheme.outlineVariant,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)
+                        )
+                        ListItem(
+                            headlineContent = { Text("Logout") },
+                            leadingContent = {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.Logout,
+                                    contentDescription = "Logout"
+                                )
+                            },
+                            modifier = Modifier.clickable { onLogout() }
+                        )
+                        ListItem(
+                            headlineContent = { Text("Take a Quiz") },
+                            leadingContent = {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_quiz),
+                                    contentDescription = "Take a Quiz"
+                                )
+                            },
+                            modifier = Modifier.clickable { onNavigateToQuiz() }
+                        )
+                    }
 
                     // User Profile Info (at the bottom)
                     // This will be above the FAB due to Scaffold's layout behavior
-                    Divider(
-                        color = MaterialTheme.colorScheme.outlineVariant,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)
-                    )
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp) // Added bottom padding
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.secondaryContainer),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "U",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer
-                            )
-                        }
-                        Text(
-                            text = "User ID: $currentUserId",
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.padding(start = 12.dp),
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
+
                 }
             }
         }

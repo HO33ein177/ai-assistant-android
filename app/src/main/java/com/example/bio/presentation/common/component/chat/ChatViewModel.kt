@@ -34,7 +34,7 @@ const val SENDER_AI = "ai"
 private const val TAG = "ChatViewModel"
 
 
-private const val HARDCODED_API_KEY = "AIzaSyD9s7AsAjgdSTlMvASKBZLuQVcpHjnT88Y"
+private const val HARDCODED_API_KEY = "AIzaSyCIpO9iAbHgt3rTfBkHtX3NZDqBuJcI68I"
 
 @HiltViewModel
 class ChatViewModel @Inject constructor(
